@@ -3,10 +3,16 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-03-10",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "mcp.bootpay.ai/*",
+      "zone_name": "bootpay.ai"
+    }
+  ],
   "kv_namespaces": [
     {
       "binding": "DOCS_KV",
-      "id": "32e289cfb2aa4328b62342bba7774d0a"
+      "id": "9b2c65f3c49e4047b088cfb860fef3ac"
     }
   ]
 }
