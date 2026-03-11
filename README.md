@@ -52,7 +52,15 @@ https://mcp.bootpay.ai/mcp
 | `search_docs` | 개발자 문서 검색 | `"결제 연동"`, `"빌링키 발급"` |
 | `get_doc` | 특정 문서 전체 조회 | `"payment/request"`, `"billing/intro"` |
 | `list_docs` | 문서 목록 (카테고리별) | `"payment"`, `"subscription"` |
+| `get_setup_checklist` | 연동 환경 설정 체크리스트 | type: `payment`, platform: `web` |
+| `get_troubleshooting` | 연동 문제 해결 가이드 | topic: `webhook`, `sandbox`, `error` |
 | `get_cs_guide` | 고객응대 매뉴얼 검색 | `"PG 심사"`, `"결제 취소"` |
+
+## 제공 프롬프트
+
+| 프롬프트 | 설명 | 파라미터 |
+|---------|------|---------|
+| `integration-action-plan` | 6단계 연동 액션 플랜 | type, platform, server_language |
 
 ## 사용 예시
 

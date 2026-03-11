@@ -14,7 +14,260 @@ import matter from 'gray-matter';
 
 const CONTENT_DIR = join(import.meta.dirname!, '../../../content');
 const DATA_DIR = join(import.meta.dirname!, '../../../data');
+const VERSION_FILE = join(CONTENT_DIR, 'public/version.json');
 const DRY_RUN = process.argv.includes('--dry-run');
+
+// ── version.json 로드 ──
+const versions: Record<string, string> = JSON.parse(readFileSync(VERSION_FILE, 'utf-8'));
+
+// ── Vue 컴포넌트를 LLM-readable 마크다운으로 치환 ──
+// VitePress 문서는 Vue 컴포넌트를 사용하지만, MCP로 제공할 때는
+// AI가 읽을 수 있는 순수 마크다운으로 변환해야 한다.
+
+function expandVueComponents(markdown: string): string {
+  let result = markdown;
+
+  // ── 1. <SdkInstall> → 설치 명령어 (version.json 기반) ──
+  result = result.replace(/<SdkInstall\s+type="(\w+)"\s*\/>/g, (_m, type: string) => {
+    if (type === 'client') {
+      return `### SDK 설치 (클라이언트)
+
+**Web (NPM)**
+\`\`\`bash
+npm install @bootpay/client-js@${versions.js}
+\`\`\`
+
+**Web (CDN)**
+\`\`\`html
+<script src="https://js.bootpay.co.kr/bootpay-${versions.js}.min.js"></script>
+\`\`\`
+
+**Android (build.gradle)**
+\`\`\`gradle
+dependencies {
+    implementation 'kr.co.bootpay:android:${versions.android}'
+}
+\`\`\`
+
+**iOS (CocoaPods)**
+\`\`\`ruby
+pod 'Bootpay', '~> ${versions.ios}'
+\`\`\`
+
+**Flutter (pubspec.yaml)**
+\`\`\`yaml
+dependencies:
+  bootpay: ^${versions.flutter}
+\`\`\`
+
+**React Native**
+\`\`\`bash
+npm install react-native-bootpay-api@${versions.react_native}
+cd ios && pod install
+\`\`\``;
+    }
+    if (type === 'server') {
+      return `### SDK 설치 (서버)
+
+**Node.js**
+\`\`\`bash
+npm install @bootpay/backend-js@${versions.nodejs}
+\`\`\`
+
+**Python**
+\`\`\`bash
+pip install bootpay-backend==${versions.python}
+\`\`\`
+
+**PHP**
+\`\`\`bash
+composer require bootpay/server-php
+\`\`\`
+
+**Java (Maven)**
+\`\`\`xml
+<dependency>
+    <groupId>kr.co.bootpay</groupId>
+    <artifactId>backend</artifactId>
+    <version>${versions.java}</version>
+</dependency>
+\`\`\`
+
+**Ruby**
+\`\`\`bash
+gem install bootpay-backend -v ${versions.ruby}
+\`\`\`
+
+**Go**
+\`\`\`bash
+go get github.com/bootpay/backend-go/v2@${versions.go}
+\`\`\`
+
+**.NET**
+\`\`\`bash
+dotnet add package Bootpay --version ${versions.aspnet}
+\`\`\``;
+    }
+    if (type === 'webview') {
+      return `### SDK 설치 (웹뷰)
+
+**Android (build.gradle)**
+\`\`\`gradle
+dependencies {
+    implementation 'kr.co.bootpay:webview:${versions.android}'
+}
+\`\`\`
+
+**iOS (CocoaPods)**
+\`\`\`ruby
+pod 'Bootpay', '~> ${versions.ios}'
+\`\`\`
+
+**Flutter (pubspec.yaml)**
+\`\`\`yaml
+dependencies:
+  bootpay_webview_flutter: ^${versions.flutter}
+\`\`\`
+
+**React Native**
+\`\`\`bash
+npm install react-native-webview-bootpay@${versions.react_native_webview_bootpay}
+cd ios && pod install
+\`\`\``;
+    }
+    return _m;
+  });
+
+  // ── 2. <ApiEndpoint> → 평문 API 정보 ──
+  result = result.replace(
+    /<ApiEndpoint\s+method="([^"]+)"\s+url="([^"]+)"(?:\s+auth="([^"]+)")?\s*\/>/g,
+    (_m, method: string, url: string, auth?: string) => {
+      let out = `> **${method}** \`${url}\``;
+      if (auth) out += `\n> 인증: ${auth}`;
+      return out;
+    },
+  );
+
+  // ── 3. <Parameters>, <ErrorCodes>, <ResponseExample> → 래퍼 태그 제거, 내부 콘텐츠 유지 ──
+  for (const tag of ['Parameters', 'ErrorCodes', 'ResponseExample', 'ResponseFields']) {
+    const re = new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*</${tag}>`, 'g');
+    result = result.replace(re, '$1');
+  }
+
+  // ── 4. <ApprovalOnly>, <BillingOnly>, <WebhookOnly>, <SdkOnly> → 조건 라벨 + 내부 콘텐츠 유지 ──
+  for (const tag of ['ApprovalOnly', 'BillingOnly', 'WebhookOnly', 'SdkOnly']) {
+    const re = new RegExp(`<${tag}(?:\\s+[^>]*)?>\\s*([\\s\\S]*?)\\s*</${tag}>`, 'g');
+    result = result.replace(re, '$1');
+  }
+
+  // ── JS 객체 리터럴 파서 (Vue 템플릿 속성에서 사용) ──
+  // regex 기반 JSON 변환은 문자열 내부 ':' 등에서 깨지므로 Function 생성자 사용
+  const evalJsLiteral = (s: string): any => {
+    try {
+      return new Function(`return ${s}`)();
+    } catch {
+      return null;
+    }
+  };
+
+  // ── 5. <CanvasSequence> → 텍스트 시퀀스 다이어그램 ──
+  result = result.replace(/<CanvasSequence\s([\s\S]*?)\/>/g, (_m, attrs: string) => {
+    try {
+      const participantsMatch = attrs.match(/:participants="(\[[\s\S]*?\])"/);
+      const messagesMatch = attrs.match(/:messages="(\[[\s\S]*?\])"/);
+      if (!participantsMatch || !messagesMatch) return '';
+
+      const participants = evalJsLiteral(participantsMatch[1]);
+      const messages = evalJsLiteral(messagesMatch[1]);
+      if (!participants || !messages) return '';
+
+      const labelMap = Object.fromEntries(participants.map((p: any) => [p.id, p.label]));
+      const lines = ['```', `[시퀀스 다이어그램]`];
+      for (const msg of messages) {
+        const fromLabel = labelMap[msg.from] || msg.from;
+        const toLabel = labelMap[msg.to] || msg.to;
+        const arrow = msg.type === 'dashed' ? '-->' : '→';
+        if (msg.from === msg.to) {
+          lines.push(`  ${fromLabel}: ${msg.label}`);
+        } else {
+          lines.push(`  ${fromLabel} ${arrow} ${toLabel}: ${msg.label}`);
+        }
+      }
+      lines.push('```');
+      return lines.join('\n');
+    } catch {
+      return '';
+    }
+  });
+
+  // ── 6. <CanvasFlow> → 텍스트 플로우차트 ──
+  result = result.replace(/<CanvasFlow\s([\s\S]*?)\/>/g, (_m, attrs: string) => {
+    try {
+      const nodesMatch = attrs.match(/:nodes="(\[[\s\S]*?\])"/);
+      const edgesMatch = attrs.match(/:edges="(\[[\s\S]*?\])"/);
+      if (!nodesMatch) return '';
+
+      const nodes = evalJsLiteral(nodesMatch[1]);
+      const edges = edgesMatch ? evalJsLiteral(edgesMatch[1]) : [];
+      if (!nodes) return '';
+
+      const labelMap = Object.fromEntries(nodes.map((n: any) => [n.id, n.label]));
+      const lines = ['```', `[플로우차트]`];
+      for (const edge of (edges || [])) {
+        const fromLabel = labelMap[edge.from] || edge.from;
+        const toLabel = labelMap[edge.to] || edge.to;
+        const label = edge.label ? ` (${edge.label})` : '';
+        lines.push(`  ${fromLabel} → ${toLabel}${label}`);
+      }
+      lines.push('```');
+      return lines.join('\n');
+    } catch {
+      return '';
+    }
+  });
+
+  // ── 7. <CanvasState> → 텍스트 상태 다이어그램 ──
+  result = result.replace(/<CanvasState\s([\s\S]*?)\/>/g, (_m, attrs: string) => {
+    try {
+      const statesMatch = attrs.match(/:states="(\[[\s\S]*?\])"/);
+      if (!statesMatch) return '';
+
+      const states = evalJsLiteral(statesMatch[1]);
+      if (!states) return '';
+
+      const labelMap = Object.fromEntries(states.map((s: any) => [s.id, s.label]));
+      const lines = ['```', `[상태 다이어그램]`];
+      for (const state of states) {
+        if (state.transitions) {
+          for (const t of state.transitions) {
+            const toLabel = labelMap[t.to] || t.to;
+            lines.push(`  ${state.label} → ${toLabel}: ${t.label}`);
+          }
+        }
+      }
+      lines.push('```');
+      return lines.join('\n');
+    } catch {
+      return '';
+    }
+  });
+
+  // ── 8. UI 전용 컴포넌트 제거 (콘텐츠 없는 셀프클로징 태그) ──
+  result = result.replace(/<(?:InlineSdkSelector|ApprovalModeSelector|BillingModeSelector|WebhookTypeSelector|ChooseFlowChart|SdkVersion)\s*[^>]*\/>/g, '');
+
+  // ── 9. VitePress ::: 컨테이너 → 명확한 라벨 ──
+  result = result.replace(/^:::\s*(tip|info|warning|danger|details)(?:\s+(.*))?$/gm, (_m, type: string, title?: string) => {
+    const labels: Record<string, string> = { tip: 'TIP', info: 'INFO', warning: 'WARNING', danger: 'DANGER', details: 'DETAILS' };
+    const label = labels[type] || type.toUpperCase();
+    return title ? `> **${label}: ${title.trim()}**` : `> **${label}**`;
+  });
+  result = result.replace(/^:::$/gm, '');
+
+  // ── 10. ::: code-group → 그대로 유지 (코드 블록은 이미 마크다운) ──
+  result = result.replace(/^:::\s*code-group\s*$/gm, '');
+
+  return result;
+}
 
 interface DocEntry {
   path: string;
@@ -62,7 +315,7 @@ function parseDoc(filePath: string): DocEntry & { content: string } {
     description: data.description || '',
     category,
     slug,
-    content: content.trim(),
+    content: expandVueComponents(content.trim()),
   };
 }
 
