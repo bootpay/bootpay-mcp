@@ -133,7 +133,7 @@ class SubscriptionActivity : AppCompatActivity() {
 
 ## 핵심 포인트
 
-1. **Application ID**: Android 전용 ID를 사용 ([관리자 → 개발자 설정](https://admin.bootpay.co.kr/setting/developer?tab=api-key&cursor=payment))
+1. **Application ID**: Android 전용 ID를 사용 ([관리자 → 개발자 설정](https://admin.bootpay.ai/setting/developer?tab=api-key&cursor=payment))
 2. **`Bootpay.init()`**: `supportFragmentManager`와 `this`(Activity) 전달 필수
 3. **`requestPayment()` vs `requestSubscription()`**: 일반결제와 빌링키 발급은 메서드가 다름
 4. **`appScheme`**: 외부 앱(카카오페이 등)에서 복귀 시 필요. `AndroidManifest.xml`에 intent-filter 추가

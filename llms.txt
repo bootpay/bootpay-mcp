@@ -88,7 +88,7 @@
 
 ## 연동 시작하기
 
-1. https://admin.bootpay.co.kr 회원가입
+1. https://admin.bootpay.ai 회원가입
 2. 프로젝트 생성 → PG 활성화
 3. 개발자 설정 → API 연동키에서 Application ID 확인
 4. SDK 설치 → 결제 요청 코드 작성
@@ -96,8 +96,8 @@
 
 ## 문서
 
-- 개발자 문서: https://developers.bootpay.co.kr
-- 관리자: https://admin.bootpay.co.kr
+- 개발자 문서: https://developers.bootpay.ai
+- 관리자: https://admin.bootpay.ai
 
 ## 문서 카테고리
 

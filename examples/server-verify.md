@@ -18,7 +18,7 @@ BOOTPAY_REST_APP_ID=your_rest_application_id   # 관리자 → API 연동키 →
 BOOTPAY_PRIVATE_KEY=your_private_key            # 관리자 → API 연동키 → Private Key
 ```
 
-> ⚠️ REST Application ID는 프론트엔드용 Application ID와 **다릅니다**. [관리자 → 개발자 설정 → API 연동키](https://admin.bootpay.co.kr/setting/developer?tab=api-key&cursor=payment)에서 확인하세요.
+> ⚠️ REST Application ID는 프론트엔드용 Application ID와 **다릅니다**. [관리자 → 개발자 설정 → API 연동키](https://admin.bootpay.ai/setting/developer?tab=api-key&cursor=payment)에서 확인하세요.
 
 ## 1. 결제 검증 (Express 예시)
 

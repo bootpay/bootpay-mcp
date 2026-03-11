@@ -127,7 +127,7 @@ MCP 서버를 설정하지 않은 상태에서 이 레포를 참고하는 AI를 
 ### Critical Rules
 
 - **SDK v2 (5.x) only** — `bootpay-3.x.x.min.js`, `bootpay-4.x.x.min.js` are v1 (deprecated) and will not work
-- **Application ID required** — must be obtained from [Bootpay Admin](https://admin.bootpay.co.kr/setting/developer?tab=api-key&cursor=payment), never use placeholder values
+- **Application ID required** — must be obtained from [Bootpay Admin](https://admin.bootpay.ai/setting/developer?tab=api-key&cursor=payment), never use placeholder values
 - **Private Key** — server-side only, never expose in client code
 
 ---
@@ -217,9 +217,9 @@ Next.js에서 결제 검증 서버 코드 작성해줘
 
 ## Links
 
-- [Bootpay Developer Docs](https://developers.bootpay.co.kr)
-- [Bootpay Admin](https://admin.bootpay.co.kr)
-- [Bootpay Official](https://bootpay.co.kr)
+- [Bootpay Developer Docs](https://developers.bootpay.ai)
+- [Bootpay Admin](https://admin.bootpay.ai)
+- [Bootpay Official](https://www.bootpay.ai)
 - [MCP Protocol Specification](https://modelcontextprotocol.io)
 - [llms.txt](./llms.txt) — LLM-optimized documentation
 

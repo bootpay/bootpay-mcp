@@ -117,7 +117,7 @@ VITE_BOOTPAY_APP_ID=your_application_id  # 관리자에서 발급받은 실제 I
 
 ## 핵심 포인트
 
-1. **Application ID**: `YOUR_APPLICATION_ID`를 [관리자 → 개발자 설정 → API 연동키](https://admin.bootpay.co.kr/setting/developer?tab=api-key&cursor=payment)에서 발급받은 실제 ID로 교체
+1. **Application ID**: `YOUR_APPLICATION_ID`를 [관리자 → 개발자 설정 → API 연동키](https://admin.bootpay.ai/setting/developer?tab=api-key&cursor=payment)에서 발급받은 실제 ID로 교체
 2. **CDN 버전**: `bootpay-5.1.4.min.js` — 3.x/4.x는 v1 deprecated
 3. **서버 검증 필수**: 결제 성공 후 `receipt_id`를 서버로 전달하여 금액 검증을 반드시 수행
 4. **PG 설정**: `pg: 'nicepay'`는 기본값. 관리자에서 활성화한 PG를 사용

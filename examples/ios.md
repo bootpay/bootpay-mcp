@@ -128,7 +128,7 @@ class SubscriptionViewController: UIViewController {
 
 ## 핵심 포인트
 
-1. **Application ID**: iOS 전용 ID를 사용 ([관리자 → 개발자 설정](https://admin.bootpay.co.kr/setting/developer?tab=api-key&cursor=payment))
+1. **Application ID**: iOS 전용 ID를 사용 ([관리자 → 개발자 설정](https://admin.bootpay.ai/setting/developer?tab=api-key&cursor=payment))
 2. **Chainable API**: `.onDone { }.onCancel { }.onError { }` 체이닝 방식
 3. **URL Scheme**: Info.plist에 앱 스킴 등록 필요 (외부 앱에서 복귀 시)
 4. **서버 검증**: `onDone`에서 받은 데이터의 `receipt_id`를 서버로 전달하여 검증 필수

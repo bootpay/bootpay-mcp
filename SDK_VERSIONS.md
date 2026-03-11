@@ -82,4 +82,4 @@ MCP 서버가 설정되어 있다면:
 get_sdk_versions 도구를 호출하면 항상 최신 버전을 반환합니다.
 ```
 
-공식 문서: https://developers.bootpay.co.kr
+공식 문서: https://developers.bootpay.ai
