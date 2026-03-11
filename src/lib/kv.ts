@@ -19,3 +19,9 @@ export async function getDocsByCategory(kv: KVNamespace, category: string): Prom
   if (!raw) return [];
   return JSON.parse(raw);
 }
+
+export async function getSdkVersions(kv: KVNamespace): Promise<Record<string, string>> {
+  const raw = await kv.get('meta:sdk-versions');
+  if (!raw) return {};
+  return JSON.parse(raw);
+}

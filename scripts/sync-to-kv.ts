@@ -351,6 +351,114 @@ function uploadToKV(entries: Array<{ key: string; value: string }>) {
   }
 }
 
+// ── 예제 동기화 ──
+interface ExampleMeta {
+  id: string;
+  title: string;
+  description: string;
+  platform: string;
+  files: string[];
+}
+
+const EXAMPLE_PLATFORM_MAP: Record<string, string> = {
+  'web-vanilla': 'web',
+  'web-react': 'web',
+  'web-order-flow': 'web',
+  'flutter': 'flutter',
+  'android': 'android',
+  'ios': 'ios',
+  'react-native': 'react-native',
+};
+
+const EXAMPLE_CODE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.html', '.kt', '.swift', '.dart', '.yaml', '.json', '.gradle', '.ruby', '.env.example'];
+
+function syncExamples(examplesDir: string, kvEntries: Array<{ key: string; value: string }>): ExampleMeta[] {
+  const index: ExampleMeta[] = [];
+
+  const dirs = readdirSync(examplesDir).filter(d => {
+    const fullPath = join(examplesDir, d);
+    return statSync(fullPath).isDirectory() && d !== 'node_modules' && !d.startsWith('.');
+  });
+
+  for (const dir of dirs) {
+    const exDir = join(examplesDir, dir);
+    const readmePath = join(exDir, 'README.md');
+
+    if (!existsSync(readmePath)) continue;
+
+    const readme = readFileSync(readmePath, 'utf-8');
+    const titleMatch = readme.match(/^#\s+(.+)/m);
+    const title = titleMatch ? titleMatch[1].trim() : dir;
+
+    // 설명은 README 첫 문단 (제목 다음)
+    const descMatch = readme.match(/^#[^\n]+\n+([^\n#]+)/m);
+    const description = descMatch ? descMatch[1].trim() : '';
+
+    // 소스 파일 수집
+    const sourceFiles = collectSourceFiles(exDir);
+    const fileNames = sourceFiles.map(f => relative(exDir, f));
+
+    // 마크다운으로 합쳐서 KV에 저장
+    const sections = [readme, '\n---\n'];
+
+    for (const file of sourceFiles) {
+      const relPath = relative(exDir, file);
+      const ext = relPath.split('.').pop() ?? '';
+      const lang = extToLang(ext);
+      const content = readFileSync(file, 'utf-8');
+      sections.push(`\n## \`${relPath}\`\n\n\`\`\`${lang}\n${content}\n\`\`\`\n`);
+    }
+
+    const combined = sections.join('\n');
+    kvEntries.push({ key: `example:${dir}`, value: combined });
+
+    const meta: ExampleMeta = {
+      id: dir,
+      title,
+      description,
+      platform: EXAMPLE_PLATFORM_MAP[dir] ?? 'web',
+      files: fileNames,
+    };
+    index.push(meta);
+
+    console.log(`   📄 ${dir}: ${fileNames.length}개 파일 (${(combined.length / 1024).toFixed(1)}KB)`);
+  }
+
+  kvEntries.push({ key: 'examples:index', value: JSON.stringify(index) });
+  return index;
+}
+
+function collectSourceFiles(dir: string, depth = 0): string[] {
+  if (depth > 3) return []; // 과도한 재귀 방지
+
+  const files: string[] = [];
+  const entries = readdirSync(dir);
+
+  for (const entry of entries) {
+    if (entry === 'node_modules' || entry === '.git' || entry === 'dist' || entry === 'build') continue;
+    const fullPath = join(dir, entry);
+    const stat = statSync(fullPath);
+
+    if (stat.isDirectory()) {
+      files.push(...collectSourceFiles(fullPath, depth + 1));
+    } else if (EXAMPLE_CODE_EXTENSIONS.some(ext => entry.endsWith(ext)) || entry === '.env.example') {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+function extToLang(ext: string): string {
+  const map: Record<string, string> = {
+    ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
+    html: 'html', kt: 'kotlin', swift: 'swift', dart: 'dart',
+    yaml: 'yaml', json: 'json', gradle: 'gradle', ruby: 'ruby',
+    example: 'bash',
+  };
+  return map[ext] ?? ext;
+}
+
 // ── 메인 ──
 async function main() {
   console.log('🔍 마크다운 파일 수집 중...');
@@ -420,7 +528,19 @@ async function main() {
     console.log(`📋 CS 가이드 포함 (${(csContent.length / 1024).toFixed(1)}KB)`);
   }
 
-  // 5. 메타
+  // 5. 예제 코드
+  const EXAMPLES_DIR = join(import.meta.dirname!, '../../../examples');
+  if (existsSync(EXAMPLES_DIR)) {
+    console.log('\n📦 예제 코드 수집 중...');
+    const examplesIndex = syncExamples(EXAMPLES_DIR, kvEntries);
+    console.log(`   예제: ${examplesIndex.length}개`);
+  }
+
+  // 6. SDK 버전 정보 (version.json → KV)
+  kvEntries.push({ key: 'meta:sdk-versions', value: JSON.stringify(versions) });
+  console.log(`📌 SDK 버전 포함: JS ${versions.js}, Flutter ${versions.flutter}, Android ${versions.android}`);
+
+  // 7. 메타
   kvEntries.push({ key: 'meta:last-updated', value: new Date().toISOString() });
 
   console.log(`\n📦 총 ${kvEntries.length}개 KV 엔트리 (${(JSON.stringify(kvEntries).length / 1024).toFixed(0)}KB)`);

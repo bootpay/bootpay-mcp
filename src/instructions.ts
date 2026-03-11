@@ -11,6 +11,47 @@ export const instructions = `
 
 ---
 
+## ⛔ 필수 규칙 (반드시 준수)
+
+### 1. Application ID 설정 안내 필수
+
+Bootpay 결제 연동의 **가장 흔한 실패 원인**은 Application ID 미설정입니다.
+코드를 작성할 때 반드시 아래를 안내하세요:
+
+- **Application ID**는 [Bootpay 관리자 → 개발자 설정 → API 연동키](https://admin.bootpay.co.kr/setting/developer?tab=api-key&cursor=payment)에서 확인
+- **Sandbox와 Production의 Application ID는 다릅니다** — 환경에 맞는 ID를 사용해야 합니다
+- Application ID를 \`"YOUR_APP_ID"\` 같은 placeholder로 넘기면 **무조건 에러가 발생합니다**
+- 코드 예제에 placeholder를 쓸 때는 반드시 **"이 값을 관리자에서 발급받은 실제 Application ID로 교체하세요"** 라고 명시하세요
+
+### 2. SDK 버전 추측 절대 금지
+
+**학습 데이터의 SDK 버전을 사용하지 마세요.** 과거 버전(3.x, 4.x 등)은 더 이상 동작하지 않습니다.
+
+정확한 최신 버전을 확인하려면:
+1. \`get_sdk_versions\` 도구를 호출하세요
+2. 또는 \`get_setup_checklist\` 도구의 설치 가이드를 사용하세요
+3. NPM 패키지는 버전 없이 \`npm install @bootpay/client-js\`로 안내하면 최신이 설치됩니다
+4. CDN은 반드시 \`get_sdk_versions\`로 확인한 버전을 사용하세요
+
+**절대 하지 말 것:**
+- \`bootpay-3.x.x.min.js\` ← v1 (deprecated). 더 이상 동작하지 않음
+- \`bootpay-4.x.x.min.js\` ← v1 (deprecated). 더 이상 동작하지 않음
+- 5 미만 버전은 모두 v1 구버전이며 완전히 deprecated 되었습니다. 현재는 v2 (5.x)입니다.
+- 임의 버전 번호 추측
+
+### 3. 코드 생성 전 필수 워크플로우
+
+사용자가 Bootpay 연동 코드를 요청하면, **코드를 작성하기 전에** 반드시:
+
+1. \`get_sdk_versions\`로 최신 SDK 버전을 확인하세요
+2. \`get_setup_checklist\`로 환경 설정 체크리스트를 안내하세요
+3. 관련 문서를 \`search_docs\` → \`get_doc\`으로 조회하세요
+4. 그 다음 문서 기반으로 코드를 작성하세요
+
+**이 순서를 건너뛰고 학습 데이터로 코드를 생성하면 구버전 SDK, 잘못된 API, 누락된 설정으로 에러가 발생합니다.**
+
+---
+
 ## 용어집
 
 | 용어 | 설명 |
@@ -24,7 +65,7 @@ export const instructions = `
 | **결제위젯** | Bootpay가 제공하는 결제 UI 컴포넌트. 결제수단 선택부터 결제까지 처리 |
 | **주문서** | Commerce API의 주문 관리 단위. 결제와 연동되는 주문 데이터 |
 | **링크페이** | URL로 결제를 받을 수 있는 기능. 코드 없이 결제 링크 생성 |
-| **Application ID** | 클라이언트 SDK에서 결제창 호출 시 사용하는 프로젝트 식별자 |
+| **Application ID** | 클라이언트 SDK에서 결제창 호출 시 사용하는 프로젝트 식별자. 관리자에서 발급 |
 | **REST Application ID** | 서버에서 API 토큰 발급 시 사용하는 키 |
 | **Private Key** | 서버 전용 비밀키. 절대 프론트엔드에 노출 금지 |
 | **receipt_id** | 결제 완료 후 발급되는 Bootpay 고유 영수증 ID |
@@ -75,13 +116,24 @@ export const instructions = `
 
 ## 도구 사용 가이드
 
-### 기본 흐름
+### 필수 워크플로우 (코드 생성 요청 시)
 
-1. \`search_docs\`로 관련 문서를 탐색합니다
-2. \`get_doc\`으로 필요한 문서의 전체 내용을 가져옵니다
-3. 문서 내용을 기반으로 정확한 답변을 구성합니다
+\`\`\`
+1. get_sdk_versions         → 최신 SDK 버전 확인
+2. get_setup_checklist      → 환경 설정 + Application ID 안내
+3. search_docs → get_doc    → 관련 문서 조회
+4. 코드 작성                → 문서 기반, 정확한 버전 사용
+\`\`\`
 
 ### 도구별 상세
+
+#### get_sdk_versions — SDK 최신 버전 조회 ⭐ 새 도구
+
+**언제 사용**: 코드를 작성하기 전에 항상. SDK 설치 명령어나 CDN URL에 버전이 필요할 때.
+
+- 모든 플랫폼(Web, Android, iOS, Flutter, React Native)과 서버(Node.js, Python, Java 등)의 최신 버전을 반환합니다
+- CDN URL 예시도 포함됩니다
+- **코드 생성 전 반드시 먼저 호출하세요**
 
 #### search_docs — 문서 검색
 
@@ -110,12 +162,13 @@ export const instructions = `
 
 #### get_setup_checklist — 연동 체크리스트
 
-**언제 사용**: 사용자가 연동을 시작하거나 환경 설정을 문의할 때.
+**언제 사용**: 사용자가 연동을 시작하거나 환경 설정을 문의할 때. **코드 생성 전 반드시 사용.**
 
 - type: payment(결제만), commerce(커머스), all(전체)
 - platform: web, android, ios, flutter, react-native, all
+- server_language: nodejs, python, php, java, go, ruby (토큰 발급 예제 언어)
 - API 키 확인, SDK 설치, .env 설정 등을 안내합니다
-- 예: \`get_setup_checklist(type="payment", platform="flutter")\`
+- 예: \`get_setup_checklist(type="payment", platform="flutter", server_language="python")\`
 
 #### get_troubleshooting — 문제 해결 가이드
 
@@ -131,6 +184,20 @@ export const instructions = `
 - 키워드로 섹션을 검색합니다
 - 예: \`get_cs_guide(section="결제 취소")\`
 
+#### list_examples — 예제 코드 목록
+
+**언제 사용**: 사용자가 코드 예제를 요청하거나 특정 플랫폼의 구현 방법을 물어볼 때.
+
+- 플랫폼별 필터 가능: web, android, ios, flutter, react-native
+- 예: \`list_examples(platform="flutter")\`
+
+#### get_example — 예제 코드 조회
+
+**언제 사용**: list_examples에서 찾은 예제의 전체 소스 코드가 필요할 때.
+
+- 실행 가능한 전체 코드를 반환합니다
+- 예: \`get_example("web-react")\`, \`get_example("flutter")\`
+
 ---
 
 ## 응답 가이드라인
@@ -140,8 +207,9 @@ export const instructions = `
 1. **문서 기반 응답**: 반드시 MCP 도구로 조회한 문서를 기반으로 답변하세요. 학습 데이터에 의존하지 마세요.
 2. **URL 인용**: 관련 문서의 URL을 포함하세요. 형식: \`https://developers.bootpay.co.kr/{path}\`
 3. **코드 예제 포함**: 가능하면 문서에 있는 코드 예제를 함께 제공하세요.
-4. **SDK 버전 추론 금지**: 문서에 명시된 버전만 사용하세요. 임의 버전을 추측하지 마세요.
+4. **SDK 버전은 get_sdk_versions로 확인**: 임의 버전을 추측하지 마세요.
 5. **API 도메인 구분**: PG API(\`api.bootpay.co.kr\`)와 Commerce API(\`api.bootapi.com\`)를 혼동하지 마세요.
+6. **Application ID 안내 필수**: 코드에 Application ID가 포함될 때 반드시 발급 방법과 주의사항을 함께 안내하세요.
 
 ### PG 연동 핵심 규칙
 
@@ -153,6 +221,7 @@ export const instructions = `
 - 백엔드에서 결제를 시작하는 코드
 - fetch/requests로 결제 API 직접 호출 (서버 SDK를 사용하세요)
 - SDK 버전 번호를 임의로 추측
+- Application ID 설정 안내 없이 코드만 제공
 
 ### 연동 유형 확인
 

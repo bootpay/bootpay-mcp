@@ -2,18 +2,254 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { createMcpHandler } from 'agents/mcp';
 import { z } from 'zod';
 import type { Env } from './types.js';
-import { getIndex, getDoc, getCsGuide } from './lib/kv.js';
+import { getIndex, getDoc, getCsGuide, getSdkVersions } from './lib/kv.js';
 import { searchDocs, searchCsGuide } from './lib/search.js';
 import { instructions } from './instructions.js';
+
+function getClientEnvGuide(platform: string): string {
+  switch (platform) {
+    case 'android':
+      return `**Android — \`local.properties\` 또는 \`BuildConfig\`**
+
+\`\`\`properties
+# local.properties (git에 커밋하지 마세요)
+BOOTPAY_APP_ID=your_android_application_id
+\`\`\`
+
+\`\`\`gradle
+// app/build.gradle
+android {
+    defaultConfig {
+        buildConfigField "String", "BOOTPAY_APP_ID", "\\"" + (project.findProperty("BOOTPAY_APP_ID") ?: "") + "\\""
+    }
+}
+\`\`\`
+
+\`\`\`kotlin
+// 사용
+val appId = BuildConfig.BOOTPAY_APP_ID
+\`\`\``;
+    case 'ios':
+      return `**iOS — xcconfig 또는 Info.plist**
+
+\`\`\`bash
+# Debug.xcconfig (git에 커밋하지 마세요)
+BOOTPAY_APP_ID = your_ios_application_id
+\`\`\`
+
+\`\`\`swift
+// Info.plist에 $(BOOTPAY_APP_ID) 추가 후 사용
+let appId = Bundle.main.infoDictionary?["BOOTPAY_APP_ID"] as? String ?? ""
+\`\`\``;
+    case 'flutter':
+      return `**Flutter — \`--dart-define\` 또는 \`.env\` + flutter_dotenv**
+
+\`\`\`bash
+# 방법 1: dart-define (권장)
+flutter run --dart-define=BOOTPAY_APP_ID=your_application_id
+\`\`\`
+
+\`\`\`dart
+// 사용
+const appId = String.fromEnvironment('BOOTPAY_APP_ID');
+\`\`\`
+
+\`\`\`bash
+# 방법 2: .env 파일 + flutter_dotenv 패키지
+# .env
+BOOTPAY_APP_ID=your_application_id
+BOOTPAY_ANDROID_APP_ID=your_android_application_id
+BOOTPAY_IOS_APP_ID=your_ios_application_id
+\`\`\`
+
+> Flutter는 플랫폼별 Application ID가 다릅니다 (Web/Android/iOS 각각).`;
+    case 'react-native':
+      return `**React Native — \`react-native-config\` 패키지**
+
+\`\`\`bash
+npm install react-native-config
+\`\`\`
+
+\`\`\`bash
+# .env (git에 커밋하지 마세요)
+BOOTPAY_APP_ID=your_application_id
+BOOTPAY_ANDROID_APP_ID=your_android_application_id
+BOOTPAY_IOS_APP_ID=your_ios_application_id
+\`\`\`
+
+\`\`\`typescript
+import Config from 'react-native-config';
+const appId = Config.BOOTPAY_APP_ID;
+\`\`\``;
+    default: // web or all
+      return `**프론트엔드 (.env)** — 프레임워크에 맞는 변수명을 사용하세요
+\`\`\`bash
+# Vite (Vue, React, Svelte)
+VITE_BOOTPAY_APP_ID=your_application_id
+
+# Next.js
+NEXT_PUBLIC_BOOTPAY_APP_ID=your_application_id
+
+# Nuxt
+NUXT_PUBLIC_BOOTPAY_APP_ID=your_application_id
+
+# React (CRA)
+REACT_APP_BOOTPAY_APP_ID=your_application_id
+
+# SvelteKit
+PUBLIC_BOOTPAY_APP_ID=your_application_id
+
+# Remix / 기타
+BOOTPAY_APP_ID=your_application_id
+\`\`\``;
+  }
+}
+
+function getServerTokenExample(lang: string): string {
+  switch (lang) {
+    case 'python':
+      return `\`\`\`python
+from bootpay_backend import BootpayBackend
+
+bootpay = BootpayBackend(
+    application_id='your_rest_application_id',
+    private_key='your_private_key'
+)
+
+token = bootpay.get_access_token()
+print('토큰 발급 성공:', token)
+\`\`\``;
+    case 'php':
+      return `\`\`\`php
+use Bootpay\\BackendPhp\\BootpayApi;
+
+$bootpay = new BootpayApi(
+    'your_rest_application_id',
+    'your_private_key'
+);
+
+$token = $bootpay->getAccessToken();
+echo '토큰 발급 성공: ' . $token;
+\`\`\``;
+    case 'java':
+      return `\`\`\`java
+import kr.co.bootpay.Bootpay;
+
+Bootpay bootpay = new Bootpay("your_rest_application_id", "your_private_key");
+HashMap<String, Object> token = bootpay.getAccessToken();
+System.out.println("토큰 발급 성공: " + token);
+\`\`\``;
+    case 'go':
+      return `\`\`\`go
+import "github.com/bootpay/backend-go"
+
+client := bootpay.New("your_rest_application_id", "your_private_key")
+token, err := client.GetAccessToken()
+fmt.Println("토큰 발급 성공:", token)
+\`\`\``;
+    case 'ruby':
+      return `\`\`\`ruby
+require 'bootpay'
+
+Bootpay.configure do |config|
+  config.application_id = 'your_rest_application_id'
+  config.private_key = 'your_private_key'
+end
+
+token = Bootpay::Api.get_access_token
+puts "토큰 발급 성공: #{token}"
+\`\`\``;
+    default: // nodejs
+      return `\`\`\`javascript
+import { Bootpay } from '@bootpay/backend-js'
+
+Bootpay.setConfiguration({
+    application_id: process.env.BOOTPAY_REST_APP_ID,
+    private_key: process.env.BOOTPAY_PRIVATE_KEY
+})
+
+const token = await Bootpay.getAccessToken()
+console.log('토큰 발급 성공:', token)
+\`\`\``;
+  }
+}
 
 function createServer(env: Env) {
   const server = new McpServer(
     {
       name: 'Bootpay Developer Docs',
-      version: '1.1.0',
+      version: '1.2.0',
     },
     {
       instructions,
+    }
+  );
+
+  // ── get_sdk_versions ──
+  server.tool(
+    'get_sdk_versions',
+    '모든 Bootpay SDK의 최신 버전을 반환합니다. 코드를 작성하기 전에 반드시 이 도구를 호출하여 정확한 버전을 확인하세요. 학습 데이터의 버전(3.x, 4.x 등)은 더 이상 동작하지 않습니다.',
+    {},
+    async () => {
+      const v = await getSdkVersions(env.DOCS_KV);
+
+      if (!v || Object.keys(v).length === 0) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `SDK 버전 정보를 불러올 수 없습니다. NPM 패키지는 버전 없이 설치하면 최신이 설치됩니다:
+\`\`\`bash
+npm install @bootpay/client-js
+\`\`\``,
+          }],
+        };
+      }
+
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `# Bootpay SDK 최신 버전
+
+> ⚠️ **이 버전 정보를 반드시 사용하세요.** 학습 데이터의 과거 버전(3.x, 4.x 등)은 동작하지 않습니다.
+
+## 클라이언트 SDK
+
+| 플랫폼 | 패키지 | 최신 버전 | 설치 명령어 |
+|--------|--------|----------|------------|
+| **Web (NPM)** | @bootpay/client-js | ${v.js} | \`npm install @bootpay/client-js\` |
+| **Web (CDN)** | bootpay JS | ${v.js} | \`<script src="https://js.bootpay.co.kr/bootpay-${v.js}.min.js"></script>\` |
+| **Android** | kr.co.bootpay:android | ${v.android} | \`implementation 'kr.co.bootpay:android:${v.android}'\` |
+| **iOS** | Bootpay (CocoaPods) | ${v.ios} | \`pod 'Bootpay', '~> ${v.ios}'\` |
+| **Flutter** | bootpay | ${v.flutter} | \`flutter pub add bootpay_flutter\` |
+| **React Native** | react-native-bootpay-api | ${v.react_native} | \`npm install @bootpay/react-native-bootpay\` |
+
+## 서버 SDK
+
+| 언어 | 패키지 | 최신 버전 | 설치 명령어 |
+|------|--------|----------|------------|
+| **Node.js** | @bootpay/backend-js | ${v.nodejs} | \`npm install @bootpay/backend-js\` |
+| **Python** | bootpay-backend | ${v.python} | \`pip install bootpay-backend\` |
+| **Java** | kr.co.bootpay:backend | ${v.java} | Maven/Gradle 의존성 추가 |
+| **Ruby** | bootpay | ${v.ruby} | \`gem install bootpay\` |
+| **Go** | backend-go | ${v.go} | \`go get github.com/bootpay/backend-go/v2\` |
+| **.NET** | Bootpay | ${v.aspnet} | \`dotnet add package Bootpay\` |
+
+## CDN URL 형식
+
+\`\`\`html
+<!-- 일반 결제 -->
+<script src="https://js.bootpay.co.kr/bootpay-${v.js}.min.js"></script>
+
+<!-- 결제 위젯 -->
+<script src="https://js.bootpay.co.kr/bootpay-widget-${v.js}.min.js"></script>
+\`\`\`
+
+## ⚠️ 주의사항
+- CDN URL의 버전 번호를 임의로 변경하지 마세요
+- \`bootpay-3.x.x\`, \`bootpay-4.x.x\` 등 5 미만 버전은 **v1 (deprecated)** 이며 완전히 지원 종료되었습니다. 현재는 v2 (5.x)입니다.
+- NPM 설치 시 버전을 생략하면 자동으로 최신 버전이 설치됩니다`,
+        }],
+      };
     }
   );
 
@@ -145,8 +381,14 @@ function createServer(env: Env) {
         .optional()
         .default('all')
         .describe('플랫폼 (SDK 설치 안내용)'),
+      server_language: z
+        .enum(['nodejs', 'python', 'php', 'java', 'go', 'ruby'])
+        .optional()
+        .default('nodejs')
+        .describe('서버 언어 (토큰 발급 예제용)'),
     },
-    async ({ type, platform }) => {
+    async ({ type, platform, server_language }) => {
+      const v = await getSdkVersions(env.DOCS_KV);
       const sections: string[] = [];
 
       // ── 공통: 계정 & 프로젝트 ──
@@ -157,16 +399,22 @@ function createServer(env: Env) {
 - [ ] 사업자 정보 등록 완료
 - [ ] [프로젝트 생성](https://admin.bootpay.co.kr/project/new) 완료
 - [ ] 사용할 PG사 활성화 ([결제 설정](https://admin.bootpay.co.kr/payment/setting))
-- [ ] Sandbox / Production 환경 결정`);
+- [ ] Sandbox / Production 환경 결정
+
+> ⚠️ **Application ID 미설정은 가장 흔한 연동 실패 원인입니다.**
+> 반드시 [관리자](https://admin.bootpay.co.kr/setting/developer?tab=api-key&cursor=payment)에서 발급받은 실제 ID를 사용하세요.
+> Sandbox와 Production의 Application ID는 다릅니다.`);
 
       // ── 결제 API 키 ──
       if (type === 'payment' || type === 'all') {
+        const clientEnvGuide = getClientEnvGuide(platform);
+
         sections.push(`## 2. 결제 API 키 확인
 [관리자 → 개발자 설정 → API 연동키 (결제)](https://admin.bootpay.co.kr/setting/developer?tab=api-key&cursor=payment)
 
 | 키 | 용도 | 설정 위치 |
 |----|------|-----------|
-| **Application ID** | 프론트엔드 SDK에서 결제창 호출 | 클라이언트 코드 또는 \`.env\` |
+| **Application ID** | 프론트엔드 SDK에서 결제창 호출 | ${platform === 'android' ? 'BuildConfig 또는 local.properties' : platform === 'ios' ? 'xcconfig 또는 Info.plist' : platform === 'flutter' ? '--dart-define 또는 .env' : platform === 'react-native' ? '.env (react-native-config)' : '클라이언트 코드 또는 `.env`'} |
 | **REST API Application ID** | 서버에서 토큰 발급 | 서버 환경변수 |
 | **Private Key** | 서버에서 토큰 발급 (비공개) | 서버 환경변수 |
 
@@ -176,28 +424,9 @@ function createServer(env: Env) {
 
 > ⚠️ **Private Key는 절대 프론트엔드 코드에 포함하지 마세요.**
 
-### 환경변수 설정
+### 클라이언트 환경변수 설정
 
-**프론트엔드 (.env)** — 프레임워크에 맞는 변수명을 사용하세요
-\`\`\`bash
-# Vite (Vue, React, Svelte)
-VITE_BOOTPAY_APP_ID=your_application_id
-
-# Next.js
-NEXT_PUBLIC_BOOTPAY_APP_ID=your_application_id
-
-# Nuxt
-NUXT_PUBLIC_BOOTPAY_APP_ID=your_application_id
-
-# React (CRA)
-REACT_APP_BOOTPAY_APP_ID=your_application_id
-
-# SvelteKit
-PUBLIC_BOOTPAY_APP_ID=your_application_id
-
-# Remix / 기타
-BOOTPAY_APP_ID=your_application_id
-\`\`\`
+${clientEnvGuide}
 
 **서버 (.env)**
 \`\`\`bash
@@ -206,9 +435,9 @@ BOOTPAY_PRIVATE_KEY=your_private_key
 \`\`\`
 
 ### 보안 체크
-- [ ] \`.env\` 파일이 \`.gitignore\`에 포함되어 있는지 확인
-- [ ] Private Key가 프론트엔드 번들에 포함되지 않는지 확인
-- [ ] 환경변수가 올바르게 로드되는지 \`console.log\`로 테스트 (확인 후 제거)`);
+- [ ] 환경변수/설정 파일이 \`.gitignore\`에 포함되어 있는지 확인
+- [ ] Private Key가 클라이언트 코드에 포함되지 않는지 확인
+- [ ] 환경변수가 올바르게 로드되는지 테스트 (확인 후 제거)`);
       }
 
       // ── 커머스 API 키 ──
@@ -235,10 +464,14 @@ BOOTPAY_COMMERCE_SECRET_KEY=your_commerce_secret_key
       const sdkSection = [`## ${type === 'all' ? '4' : '3'}. SDK 설치
 
 > SDK 버전을 임의로 추측하지 마세요. 아래 명령어를 그대로 사용하면 최신 버전이 설치됩니다.`];
+      const jsVer = v.js || '5.1.4';
+      const androidVer = v.android || '4.9.0';
+      const iosVer = v.ios || '4.4.4';
+
       const clientSdks: Record<string, string> = {
-        web: `**Web (NPM)**\n\`\`\`bash\nnpm install @bootpay/client-js\n\`\`\`\n\n**Web (CDN)**\n\`\`\`html\n<script src="https://js.bootpay.co.kr/bootpay-5.2.0.min.js"></script>\n\`\`\`\n\n**Web 위젯 (CDN)**\n\`\`\`html\n<script src="https://js.bootpay.co.kr/bootpay-widget-5.2.0.min.js"></script>\n\`\`\``,
-        android: `**Android (build.gradle)**\n\`\`\`gradle\nimplementation 'kr.co.bootpay:android:+'\n\`\`\`\n\n> \`+\`를 사용하면 최신 버전이 자동 선택됩니다. 임의 버전 번호를 추측하지 마세요.`,
-        ios: `**iOS (CocoaPods)**\n\`\`\`ruby\npod 'Bootpay'\n\`\`\``,
+        web: `**Web (NPM)**\n\`\`\`bash\nnpm install @bootpay/client-js\n\`\`\`\n\n**Web (CDN)**\n\`\`\`html\n<script src="https://js.bootpay.co.kr/bootpay-${jsVer}.min.js"></script>\n\`\`\`\n\n**Web 위젯 (CDN)**\n\`\`\`html\n<script src="https://js.bootpay.co.kr/bootpay-widget-${jsVer}.min.js"></script>\n\`\`\``,
+        android: `**Android (build.gradle)**\n\`\`\`gradle\nimplementation 'kr.co.bootpay:android:${androidVer}'\n\`\`\``,
+        ios: `**iOS (CocoaPods)**\n\`\`\`ruby\npod 'Bootpay', '~> ${iosVer}'\n\`\`\``,
         flutter: `**Flutter**\n\`\`\`bash\nflutter pub add bootpay_flutter\n\`\`\``,
         'react-native': `**React Native**\n\`\`\`bash\nnpm install @bootpay/react-native-bootpay\ncd ios && pod install\n\`\`\``,
       };
@@ -272,17 +505,7 @@ composer require bootpay/backend-php # PHP
       sections.push(`## ${verifyNum}. 연동 확인
 
 ### 서버 토큰 발급 테스트
-\`\`\`javascript
-import { Bootpay } from '@bootpay/backend-js'
-
-Bootpay.setConfiguration({
-    application_id: process.env.BOOTPAY_REST_APP_ID,
-    private_key: process.env.BOOTPAY_PRIVATE_KEY
-})
-
-const token = await Bootpay.getAccessToken()
-console.log('토큰 발급 성공:', token)
-\`\`\`
+${getServerTokenExample(server_language)}
 
 - [ ] 서버 토큰 발급 성공
 - [ ] 클라이언트에서 결제창 호출 성공 (Sandbox)
@@ -532,6 +755,71 @@ has been blocked by CORS policy
     }
   );
 
+  // ── list_examples ──
+  server.tool(
+    'list_examples',
+    'Bootpay SDK 예제 코드 목록을 반환합니다. 플랫폼별 실행 가능한 예제를 제공합니다.',
+    {
+      platform: z
+        .enum(['all', 'web', 'android', 'ios', 'flutter', 'react-native'])
+        .optional()
+        .default('all')
+        .describe('플랫폼 필터 (web, android, ios, flutter, react-native, all)'),
+    },
+    async ({ platform }) => {
+      const index = await env.DOCS_KV.get('examples:index', 'json') as any[] | null;
+
+      if (!index || index.length === 0) {
+        return {
+          content: [{
+            type: 'text' as const,
+            text: '예제가 아직 등록되지 않았습니다.',
+          }],
+        };
+      }
+
+      const filtered = platform === 'all'
+        ? index
+        : index.filter((ex: any) => ex.platform === platform || ex.id.includes(platform));
+
+      const text = filtered.map((ex: any) =>
+        `- **${ex.title}** (\`${ex.id}\`)\n  ${ex.description}\n  플랫폼: ${ex.platform} | 파일: ${ex.files.join(', ')}`
+      ).join('\n\n');
+
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `${filtered.length}개 예제:\n\n${text}\n\n> 예제 코드를 보려면 \`get_example\` 도구에 id를 전달하세요.`,
+        }],
+      };
+    }
+  );
+
+  // ── get_example ──
+  server.tool(
+    'get_example',
+    '특정 예제의 전체 소스 코드를 반환합니다. 복사-붙여넣기로 바로 사용할 수 있는 실행 가능한 코드를 제공합니다.',
+    {
+      id: z.string().describe('예제 ID (예: "web-vanilla", "web-react", "flutter", "android", "ios", "react-native", "web-order-flow")'),
+    },
+    async ({ id }) => {
+      const content = await env.DOCS_KV.get(`example:${id}`, 'text');
+
+      if (!content) {
+        const index = await env.DOCS_KV.get('examples:index', 'json') as any[] | null;
+        const available = index?.map((ex: any) => `  - ${ex.id} (${ex.title})`).join('\n') ?? '';
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `"${id}" 예제를 찾을 수 없습니다.${available ? `\n\n사용 가능한 예제:\n${available}` : ''}`,
+          }],
+        };
+      }
+
+      return { content: [{ type: 'text' as const, text: content }] };
+    }
+  );
+
   // ── MCP Prompt: 연동 액션 플랜 ──
   server.prompt(
     'integration-action-plan',
@@ -543,6 +831,8 @@ has been blocked by CORS policy
     },
     async ({ type, platform, server_language }) => {
       const lang = server_language ?? 'nodejs';
+      const v = await getSdkVersions(env.DOCS_KV);
+      const jsVer = v.js || '5.1.4';
 
       const platformLabels: Record<string, string> = {
         web: 'Web (JavaScript)',
@@ -563,7 +853,7 @@ has been blocked by CORS policy
       };
 
       const clientSdkInstall: Record<string, string> = {
-        web: 'npm install @bootpay/client-js\n# 또는 CDN: <script src="https://js.bootpay.co.kr/bootpay-5.2.0.min.js"></script>',
+        web: `npm install @bootpay/client-js\n# 또는 CDN: <script src="https://js.bootpay.co.kr/bootpay-${jsVer}.min.js"></script>`,
         android: "implementation 'kr.co.bootpay:android:+'  // build.gradle",
         ios: "pod 'Bootpay'  // Podfile → pod install",
         flutter: 'flutter pub add bootpay_flutter',
@@ -629,17 +919,8 @@ BOOTPAY_REST_APP_ID=your_rest_application_id
 BOOTPAY_PRIVATE_KEY=your_private_key${type === '주문서' || type === '구독' ? '\nBOOTPAY_COMMERCE_CLIENT_KEY=your_commerce_client_key\nBOOTPAY_COMMERCE_SECRET_KEY=your_commerce_secret_key' : ''}
 \`\`\`
 
-### 클라이언트 환경변수 (.env)
-\`\`\`bash
-# 프레임워크에 맞는 변수명 사용
-# Vite:          VITE_BOOTPAY_APP_ID=your_application_id
-# Next.js:       NEXT_PUBLIC_BOOTPAY_APP_ID=your_application_id
-# React (CRA):   REACT_APP_BOOTPAY_APP_ID=your_application_id
-# Nuxt:          NUXT_PUBLIC_BOOTPAY_APP_ID=your_application_id
-# SvelteKit:     PUBLIC_BOOTPAY_APP_ID=your_application_id
-# Flutter:       .env 또는 Dart 상수 파일에 정의
-# Android/iOS:   BuildConfig 또는 plist에 정의
-\`\`\`
+### 클라이언트 환경변수
+${getClientEnvGuide(platform)}
 
 ### SDK 설치
 \`\`\`bash
