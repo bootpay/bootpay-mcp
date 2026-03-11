@@ -46,7 +46,7 @@
                 // ⚠️ 반드시 관리자에서 발급받은 실제 Application ID를 사용하세요
                 application_id: 'YOUR_APPLICATION_ID',  // ← 교체 필수!
                 pg: 'nicepay',
-                method: '카드자동',             // ← 빌링키 발급 전용 method (모바일 SDK: 'card_auto')
+                method: '카드자동',             // ← 빌링키 발급 전용 method (모바일 SDK: 'card_rebill')
                 price: 29000,                 // 첫 결제 금액
                 order_name: '월간 프리미엄 플랜',
                 order_id: 'sub_' + Date.now(),

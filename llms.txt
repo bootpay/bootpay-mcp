@@ -62,7 +62,7 @@
 
 ### 프론트엔드 (클라이언트 SDK)
 - 일반결제 (카드/계좌이체/가상계좌/휴대폰): requestPayment() — method: card/bank/vbank/phone
-- 정기결제 (빌링키 발급): requestSubscription() — method: '카드자동' (Web) / 'card_auto' (모바일)
+- 정기결제 (빌링키 발급): requestSubscription() — method: '카드자동' (Web) / 'card_rebill' (모바일)
 - 결제위젯: BootpayWidget.render() — CDN: bootpay-widget-{version}.min.js
 
 ### 서버 (서버 SDK — @bootpay/backend-js 등)
