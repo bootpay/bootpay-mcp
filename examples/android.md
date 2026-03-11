@@ -96,7 +96,7 @@ class SubscriptionActivity : AppCompatActivity() {
         val payload = Payload().apply {
             applicationId = "YOUR_ANDROID_APP_ID"  // ← 교체 필수!
             pg = "nicepay"
-            method = "card_rebill"   // ← 빌링키 발급
+            method = "card_auto"     // ← 빌링키 발급 (모바일 SDK: card_auto)
             price = 29000.0
             orderName = "월간 구독 플랜"
             orderId = "sub_${System.currentTimeMillis()}"

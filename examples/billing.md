@@ -46,7 +46,7 @@
                 // ⚠️ 반드시 관리자에서 발급받은 실제 Application ID를 사용하세요
                 application_id: 'YOUR_APPLICATION_ID',  // ← 교체 필수!
                 pg: 'nicepay',
-                method: 'card_rebill',        // ← 빌링키 발급 전용 method
+                method: '카드자동',             // ← 빌링키 발급 전용 method (모바일 SDK: 'card_auto')
                 price: 29000,                 // 첫 결제 금액
                 order_name: '월간 프리미엄 플랜',
                 order_id: 'sub_' + Date.now(),
@@ -152,8 +152,7 @@ async function reservePayment(billingKey, orderInfo, executeAt) {
         order_id: `reserve_${Date.now()}`,
         price: orderInfo.price,
         tax_free: 0,
-        scheduler_type: 'oneshot',           // 1회성 예약
-        execute_at: executeAt,               // ISO 8601 (예: '2026-04-01T00:00:00+09:00')
+        reserve_execute_at: executeAt,       // Date 객체 또는 ISO 8601 문자열
         user: {
             username: orderInfo.userName,
             phone: orderInfo.userPhone,
