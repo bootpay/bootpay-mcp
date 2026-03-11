@@ -60,11 +60,23 @@
 
 ## 결제 유형별 메서드
 
+### 프론트엔드 (클라이언트 SDK)
 - 일반결제 (카드/계좌이체/가상계좌/휴대폰): requestPayment() — method: card/bank/vbank/phone
 - 정기결제 (빌링키 발급): requestSubscription() — method: card_rebill
 - 결제위젯: BootpayWidget.render() — CDN: bootpay-widget-{version}.min.js
-- 서버 자동결제: 서버 SDK로 billing_key 사용
-- 결제 취소/환불: 서버 SDK
+
+### 서버 (서버 SDK — @bootpay/backend-js 등)
+- 결제 검증: receiptPayment(receipt_id) — 금액 비교 필수
+- 결제 승인 (승인형): confirmPayment(receipt_id)
+- 결제 취소/환불: cancelPayment({ receipt_id, cancel_price?, refund? })
+- 빌링키 자동결제: requestSubscribeCardPayment({ billing_key, price, ... })
+- 예약결제: subscribePaymentReserve({ billing_key, reserve_execute_at, ... })
+- 빌링키 조회: lookupBillingKey(billing_key) / lookupSubscribeBillingKey(receipt_id)
+- 빌링키 해지: destroyBillingKey(billing_key)
+- 본인인증 조회: certificate(receipt_id)
+- 현금영수증: cashReceiptPublishOnReceipt({ receipt_id, identity_no, ... })
+- 에스크로 배송: shippingStart({ receipt_id, tracking_number, ... })
+- 사용자 토큰: requestUserToken({ user_id, ... })
 
 ## 결제 연동 흐름
 
