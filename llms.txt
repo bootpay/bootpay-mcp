@@ -47,6 +47,25 @@
 - list_examples: 예제 코드 목록
 - get_example: 예제 소스 코드
 
+## PG사 코드 매핑
+
+- 나이스페이/NICE: nicepay (기본 PG)
+- 토스페이먼츠/토스: tosspayments
+- KG이니시스: inicis
+- NHN KCP: kcp
+- 카카오페이: kakao
+- 네이버페이: naverpay
+- 페이코: payco
+- 다날: danal
+
+## 결제 유형별 메서드
+
+- 일반결제 (카드/계좌이체/가상계좌/휴대폰): requestPayment() — method: card/bank/vbank/phone
+- 정기결제 (빌링키 발급): requestSubscription() — method: card_rebill
+- 결제위젯: BootpayWidget.render() — CDN: bootpay-widget-{version}.min.js
+- 서버 자동결제: 서버 SDK로 billing_key 사용
+- 결제 취소/환불: 서버 SDK
+
 ## 결제 연동 흐름
 
 1. 프론트엔드: SDK로 결제창 호출 (Application ID 필요)
