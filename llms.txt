@@ -1,0 +1,84 @@
+# Bootpay
+
+> Bootpay는 한국의 결제·커머스 통합 플랫폼입니다. PG 연동과 Commerce API 두 축으로 구성됩니다.
+
+## 핵심 규칙
+
+- SDK 버전: v2 (5.x)가 현재 버전입니다. v1 (3.x, 4.x)은 deprecated.
+- 결제는 반드시 프론트엔드에서 시작합니다 (국내 PG 규정).
+- Application ID는 관리자에서 발급. Sandbox와 Production ID는 다릅니다.
+- Private Key는 절대 프론트엔드에 포함하지 마세요.
+
+## API 도메인
+
+- PG API (결제): api.bootpay.co.kr
+- Commerce API (주문·구독): api.bootapi.com
+
+## SDK 최신 버전 (2026-03-11)
+
+### 클라이언트
+- Web NPM: @bootpay/client-js 5.1.4
+- Web CDN: https://js.bootpay.co.kr/bootpay-5.1.4.min.js
+- Android: kr.co.bootpay:android:4.9.0
+- iOS: pod 'Bootpay', '~> 4.4.4'
+- Flutter: bootpay_flutter 4.9.98
+- React Native: @bootpay/react-native-bootpay 13.8.43
+
+### 서버
+- Node.js: @bootpay/backend-js 2.3.2
+- Python: bootpay-backend 2.0.8
+- Java: kr.co.bootpay:backend:3.0.2
+- Ruby: bootpay 2.0.5
+- Go: github.com/bootpay/backend-go/v2 v2.1.3
+- .NET: Bootpay 2.1.0
+
+## MCP 서버
+
+엔드포인트: https://mcp.bootpay.ai/mcp (Streamable HTTP)
+
+### 도구
+- get_sdk_versions: 최신 SDK 버전 조회
+- search_docs: 개발자 문서 검색
+- get_doc: 문서 전체 조회
+- list_docs: 문서 목록
+- get_setup_checklist: 연동 환경 설정 체크리스트
+- get_troubleshooting: 문제 해결 가이드
+- get_cs_guide: 고객응대 매뉴얼
+- list_examples: 예제 코드 목록
+- get_example: 예제 소스 코드
+
+## 결제 연동 흐름
+
+1. 프론트엔드: SDK로 결제창 호출 (Application ID 필요)
+2. 사용자: 결제 수단 선택 → 결제
+3. 프론트엔드: receipt_id 수신
+4. 백엔드: receipt_id로 결제 검증 (REST API Application ID + Private Key로 토큰 발급)
+5. 백엔드: 금액 일치 확인 → 주문 처리
+
+## 연동 시작하기
+
+1. https://admin.bootpay.co.kr 회원가입
+2. 프로젝트 생성 → PG 활성화
+3. 개발자 설정 → API 연동키에서 Application ID 확인
+4. SDK 설치 → 결제 요청 코드 작성
+5. 서버에서 결제 검증 구현
+
+## 문서
+
+- 개발자 문서: https://developers.bootpay.co.kr
+- 관리자: https://admin.bootpay.co.kr
+
+## 문서 카테고리
+
+- payment: 일반결제 (SDK, 결제창, 검증, 취소)
+- billing: 정기결제 (빌링키 발급, 자동결제, 해지)
+- subscription: 구독관리 (플랜, 갱신, 해지, 과금)
+- order: 주문관리 (생성, 취소, 반품)
+- customer: 고객관리 (등록, 그룹, 조회)
+- product: 상품관리 (CRUD, 옵션, 카테고리)
+- webhook: 웹훅 (설정, 이벤트, 처리)
+- guide: 시작하기 (키 발급, 환경설정)
+- integration: 연동 (에러코드, 마이그레이션)
+- invoice: 링크페이 (결제 링크 생성)
+- recipes: 레시피 (업종별 연동 시나리오)
+- architecture: 아키텍처 (결제 플로우, 데이터 모델)
