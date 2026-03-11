@@ -93,6 +93,14 @@ VITE_BOOTPAY_APP_ID=your_application_id  # 관리자에서 발급받은 실제 I
                 // });
             }
         } catch (e) {
+            // ⚠️ 에러 발생 시 반드시 콘솔에 로깅하세요 — 디버깅의 핵심 단서입니다
+            console.error('Bootpay 결제 에러:', {
+                event: e.event,       // 'error' 또는 'cancel'
+                message: e.message,   // 에러 메시지
+                data: e.data,         // 상세 에러 데이터
+                fullError: e          // 전체 에러 객체
+            });
+
             if (e.event === 'cancel') {
                 document.getElementById('result').innerHTML =
                     '<p style="color:orange;">결제 취소</p>';

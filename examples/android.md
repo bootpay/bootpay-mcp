@@ -72,6 +72,8 @@ class PaymentActivity : AppCompatActivity() {
                 }
 
                 override fun onError(data: String) {
+                    // ⚠️ 에러 발생 시 반드시 로깅 — 디버깅의 핵심 단서입니다
+                    android.util.Log.e("Bootpay", "결제 에러: $data")
                     Toast.makeText(this@PaymentActivity, "결제 에러: $data", Toast.LENGTH_SHORT).show()
                 }
 
@@ -115,8 +117,12 @@ class SubscriptionActivity : AppCompatActivity() {
                     Toast.makeText(this@SubscriptionActivity, "빌링키 발급 성공!", Toast.LENGTH_SHORT).show()
                 }
                 override fun onConfirm(data: String): Boolean = true
-                override fun onCancel(data: String) {}
-                override fun onError(data: String) {}
+                override fun onCancel(data: String) {
+                    android.util.Log.w("Bootpay", "빌링키 발급 취소: $data")
+                }
+                override fun onError(data: String) {
+                    android.util.Log.e("Bootpay", "빌링키 발급 에러: $data")
+                }
                 override fun onIssued(data: String) {}
                 override fun onClose() {}
             })

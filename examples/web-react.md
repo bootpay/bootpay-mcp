@@ -74,6 +74,14 @@ export default function App() {
         // })
       }
     } catch (e: any) {
+      // ⚠️ 에러 발생 시 반드시 콘솔에 로깅하세요 — 디버깅의 핵심 단서입니다
+      console.error('Bootpay 결제 에러:', {
+        event: e.event,       // 'error' 또는 'cancel'
+        message: e.message,   // 에러 메시지
+        data: e.data,         // 상세 에러 데이터
+        fullError: e          // 전체 에러 객체
+      })
+
       if (e.event === 'cancel') {
         setResult({ type: 'cancel', message: '결제가 취소되었습니다.' })
       } else {

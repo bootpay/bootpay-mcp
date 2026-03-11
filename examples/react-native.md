@@ -115,10 +115,13 @@ export default function App() {
         }}
         onConfirm={(data: string) => true}
         onCancel={(data: string) => {
+          console.warn('Bootpay 결제 취소:', data)
           setLoading(false)
           Alert.alert('결제 취소')
         }}
         onError={(data: string) => {
+          // ⚠️ 에러 발생 시 반드시 콘솔에 로깅 — 디버깅의 핵심 단서입니다
+          console.error('Bootpay 결제 에러:', data)
           setLoading(false)
           Alert.alert('결제 에러', data)
         }}
