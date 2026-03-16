@@ -3,6 +3,7 @@
 > **Korea's payment integration, now accessible to AI.**
 > 한국 결제 연동을 AI가 직접 수행할 수 있도록 하는 MCP 서버입니다.
 
+[![npm](https://img.shields.io/npm/v/@bootpay/mcp?label=npm&color=cb3837&logo=npm)](https://www.npmjs.com/package/@bootpay/mcp)
 [![MCP](https://img.shields.io/badge/MCP-Streamable_HTTP-blue)](https://mcp.bootpay.ai/mcp)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare)](https://workers.cloudflare.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -35,11 +36,31 @@ Bootpay는 국내 주요 PG사와 간편결제를 통합 지원합니다:
 
 ## Quick Start
 
+두 가지 연결 방식을 지원합니다:
+
+| 방식 | 특징 | 추천 환경 |
+|------|------|----------|
+| **HTTP** (Streamable HTTP) | 설치 불필요, 원격 서버 | Cursor, Windsurf, Cline, 웹 기반 |
+| **npm** (stdio) | 로컬 실행, 오프라인 가능 | Claude Desktop, Claude Code |
+
 ### Claude Desktop
 
 `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) 또는
 `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
+**npm (stdio) — 추천:**
+```json
+{
+  "mcpServers": {
+    "bootpay-docs": {
+      "command": "npx",
+      "args": ["-y", "@bootpay/mcp"]
+    }
+  }
+}
+```
+
+**HTTP (원격):**
 ```json
 {
   "mcpServers": {
@@ -54,6 +75,10 @@ Bootpay는 국내 주요 PG사와 간편결제를 통합 지원합니다:
 ### Claude Code (CLI)
 
 ```bash
+# npm (stdio)
+claude mcp add bootpay-docs -- npx -y @bootpay/mcp
+
+# HTTP
 claude mcp add bootpay-docs --transport http https://mcp.bootpay.ai/mcp
 ```
 
