@@ -4,7 +4,7 @@ scripts/
 package.json
 package-lock.json
 tsconfig.json
-wrangler.jsonc
+wrangler.toml
 CLAUDE.md
 
 # === 빌드/런타임 ===

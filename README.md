@@ -114,11 +114,10 @@ AI 내부 동작:
   1. get_sdk_versions         → 최신 SDK 버전 확인 (v2 5.x)
   2. get_setup_checklist      → Application ID + 환경 설정 안내
   3. search_docs → get_doc    → payment/request 문서 조회
-  4. get_example("web-react") → React 예제 코드 조회
-  5. 코드 작성                → 문서 기반, 정확한 버전 사용
+  4. 코드 작성                → 문서 기반, 정확한 버전 사용
 ```
 
-### 9 Tools + 1 Prompt
+### 7 Tools + 1 Prompt
 
 | Tool | Description |
 |------|-------------|
@@ -129,8 +128,6 @@ AI 내부 동작:
 | `get_setup_checklist` | 연동 환경 설정 체크리스트 (API 키, SDK 설치, .env) |
 | `get_troubleshooting` | 문제 해결 가이드 (sandbox, webhook, billing, error, cors, mobile, widget) |
 | `get_cs_guide` | 고객응대(CS) 매뉴얼 검색 |
-| `list_examples` | 플랫폼별 예제 코드 목록 |
-| `get_example` | 예제 전체 소스 코드 (클라이언트 7개 + 서버 4개) |
 
 | Prompt | Description |
 |--------|-------------|
@@ -146,7 +143,6 @@ MCP 서버를 설정하지 않은 상태에서 이 레포를 참고하는 AI를 
 |------|-------------|
 | [SDK_VERSIONS.md](./SDK_VERSIONS.md) | **최신 SDK 버전** — CDN URL, NPM, 모바일 SDK |
 | [SETUP_GUIDE.md](./SETUP_GUIDE.md) | **Application ID 발급** — 결제 연동 필수 설정 |
-| [examples/](./examples/) | **플랫폼별 연동 예제** — Web, Android, iOS, Flutter, React Native, Server |
 | [llms.txt](./llms.txt) | **LLM-optimized 전체 가이드** — AI가 읽기 최적화된 구조화 문서 |
 
 ### Critical Rules
@@ -229,7 +225,6 @@ Next.js에서 결제 검증 서버 코드 작성해줘
 └─────────────────────┘     │  ┌────────────────────┐  │
                             │  │ Cloudflare KV       │  │
                             │  │ - 120+ docs         │  │
-                            │  │ - 11 examples       │  │
                             │  │ - SDK versions      │  │
                             │  │ - CS guide          │  │
                             │  └────────────────────┘  │
