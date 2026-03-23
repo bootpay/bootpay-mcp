@@ -8,9 +8,9 @@
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare)](https://workers.cloudflare.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-AI 코딩 도구(**Claude**, **Cursor**, **Windsurf**, **Cline**, **GitHub Copilot** 등)에서 Bootpay 결제·커머스 개발자 문서를 검색하고 참조할 수 있는 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) 서버입니다.
+AI 코딩 도구(**Claude**, **Cursor**, **Windsurf**, **Cline**, **GitHub Copilot** 등)에서 Bootpay 결제·커머스를 연동할 수 있는 통합 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) 서버입니다.
 
-MCP를 연결하면 AI가 **최신 SDK 버전 확인, 문서 검색, 예제 코드 조회, 트러블슈팅**을 직접 수행하여 정확한 결제 연동 코드를 생성합니다.
+**Docs** (문서 검색·SDK 버전·트러블슈팅) + **Admin** (관리자 설정·PG·위젯) + **Commerce** (스토어·상품·회원) — 총 **54개 도구**를 하나의 MCP 서버로 제공합니다.
 
 ---
 
@@ -117,7 +117,7 @@ AI 내부 동작:
   4. 코드 작성                → 문서 기반, 정확한 버전 사용
 ```
 
-### 7 Tools + 1 Prompt
+### Docs Tools — 7개 (HTTP + stdio)
 
 | Tool | Description |
 |------|-------------|
@@ -132,6 +132,35 @@ AI 내부 동작:
 | Prompt | Description |
 |--------|-------------|
 | `integration-action-plan` | 결제유형 × 플랫폼별 6단계 연동 액션 플랜 |
+
+### Admin Tools — 34개 (stdio 전용)
+
+관리자(admin.bootpay.ai)의 설정을 AI가 직접 조회·변경할 수 있는 도구입니다. `npx @bootpay/mcp`로 실행하면 자동 활성화됩니다.
+
+| 카테고리 | Tools | Description |
+|---------|-------|-------------|
+| **인증** | `login`, `browser_login`, `logout`, `list_projects`, `switch_project`, `browser_select_project` | 로그인, 프로젝트 전환 |
+| **토큰** | `set_token`, `get_auth_status` | 인증 토큰 설정·상태 확인 |
+| **셀러** | `create_seller`, `search_sellers`, `get_seller`, `update_seller` | 셀러(가맹점) CRUD |
+| **키체인** | `list_api_scopes`, `list_keychains`, `create_keychain`, `delete_keychain` | API 키 관리 |
+| **상품** | `list_products`, `get_product`, `create_product`, `update_product`, `delete_product` | 상품 CRUD |
+| **프로젝트** | `create_project` | 프로젝트 생성 |
+| **결제설정** | `get_payment_settings`, `activate_payment_method`, `set_sandbox_mode`, `update_payment_resource`, `set_payment_mode` | PG·결제수단 설정 |
+| **위젯** | `list_widgets`, `get_widget`, `create_widget`, `get_widget_default_styles`, `configure_widget`, `update_widget`, `delete_widget` | 결제위젯 CRUD |
+
+### Commerce Tools — 13개 (stdio 전용, opt-in)
+
+AI 에이전트가 커머스 API를 호출하여 쇼핑몰 기능을 구현할 수 있는 도구입니다.
+활성화: 환경변수 `BOOTPAY_COMMERCE_ENABLED=true` 설정 후 실행.
+
+| 카테고리 | Tools | Description |
+|---------|-------|-------------|
+| **인증** | `set_commerce_credentials` | clientKey/secretKey 설정·검증 |
+| **스토어** | `commerce_get_store`, `commerce_get_store_detail` | 가맹점 정보 조회 |
+| **상품** | `commerce_get_products`, `commerce_get_product`, `commerce_create_product`, `commerce_update_product` | 상품 CRUD |
+| **회원** | `commerce_login`, `commerce_get_session`, `commerce_logout` | 회원 로그인·세션 관리 |
+| **리뷰** | `commerce_get_reviews`, `commerce_get_review_stats` | 리뷰 조회·통계 |
+| **상태** | `commerce_status` | Commerce API 상태 확인 |
 
 ---
 
@@ -217,21 +246,43 @@ Next.js에서 결제 검증 서버 코드 작성해줘
 
 ## Architecture
 
+두 가지 전송 방식을 지원하며, 도구 범위가 다릅니다:
+
 ```
-┌─────────────────────┐     ┌──────────────────────────┐
-│  AI Coding Tool     │     │  Cloudflare Workers      │
-│  (Claude, Cursor,   │────→│  mcp.bootpay.ai/mcp     │
-│   Windsurf, Cline)  │ MCP │                          │
-└─────────────────────┘     │  ┌────────────────────┐  │
-                            │  │ Cloudflare KV       │  │
-                            │  │ - 120+ docs         │  │
-                            │  │ - SDK versions      │  │
-                            │  │ - CS guide          │  │
-                            │  └────────────────────┘  │
-                            └──────────────────────────┘
+┌─────────────────────┐
+│  AI Coding Tool     │
+│  (Claude, Cursor,   │
+│   Windsurf, Cline)  │
+└────────┬────────────┘
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+ [HTTP]    [stdio]
+    │         │
+    ▼         ▼
+┌─────────┐  ┌──────────────────────────┐
+│ Workers │  │ npx @bootpay/mcp         │
+│ mcp.    │  │                          │
+│ bootpay │  │ ┌─ Docs (7 tools)        │
+│ .ai/mcp │  │ ├─ Admin (34 tools)      │
+│         │  │ └─ Commerce (13 tools)*  │
+│ Docs    │  │                          │
+│ only    │  │ * opt-in                 │
+└────┬────┘  └──────────────────────────┘
+     │
+┌────┴────┐
+│ KV      │
+│ 120+docs│
+└─────────┘
 ```
 
-**Stack**: Cloudflare Workers + KV + MCP SDK + Streamable HTTP
+| 전송 | Docs (7) | Admin (34) | Commerce (13) |
+|------|:--------:|:----------:|:-------------:|
+| **HTTP** (Cloudflare Workers) | O | — | — |
+| **stdio** (`npx @bootpay/mcp`) | O | O | opt-in |
+
+**Stack**: Cloudflare Workers + KV + MCP SDK + Streamable HTTP + stdio
 
 ---
 

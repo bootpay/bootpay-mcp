@@ -7,6 +7,12 @@ tsconfig.json
 wrangler.toml
 CLAUDE.md
 
+# === 테스트/개발 ===
+tests/
+vitest.config.ts
+temp/
+.serena/
+
 # === 빌드/런타임 ===
 node_modules/
 dist/
