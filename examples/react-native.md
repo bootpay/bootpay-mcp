@@ -7,7 +7,7 @@ React Native에서 결제를 연동하는 예제입니다.
 ## 설치
 
 ```bash
-npm install @bootpay/react-native-bootpay
+npm install react-native-bootpay-api
 cd ios && pod install
 ```
 
@@ -28,7 +28,7 @@ import {
   View, Text, TouchableOpacity, ActivityIndicator,
   StyleSheet, Platform, Alert
 } from 'react-native'
-import { BootpayWebView } from '@bootpay/react-native-bootpay'
+import { BootpayWebView } from 'react-native-bootpay-api'
 
 const items = [
   { id: 'shoe-01', name: '나이키 운동화', qty: 1, price: 30000 },

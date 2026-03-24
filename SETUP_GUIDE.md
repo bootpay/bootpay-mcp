@@ -1,8 +1,5 @@
 # Bootpay 연동 설정 가이드
 
-> **MCP 서버가 연결되어 있다면 `get_setup_checklist` 도구를 호출하세요.**
-> 플랫폼·서버 언어별 맞춤 체크리스트를 제공합니다.
-
 ## 1. 계정 & 프로젝트 생성
 
 1. [Bootpay 관리자](https://admin.bootpay.ai) 회원가입
@@ -42,10 +39,11 @@ BOOTPAY_PRIVATE_KEY=your_private_key
 
 - **결제는 프론트엔드에서 시작** — 국내 PG 규정. 백엔드에서 결제 시작 금지
 - **API 도메인 구분** — PG API(`api.bootpay.co.kr`) vs Commerce API(`api.bootapi.com`)
-- **SDK 버전 추측 금지** — MCP `get_sdk_versions` 또는 패키지 매니저로 최신 설치
+- **SDK 버전** — v2 (5.x)만 사용. 3.x/4.x는 deprecated
 
 ## 다음 단계
 
-- MCP 연결: `llms.txt` 참고
-- SDK 설치: `SDK_VERSIONS.md` 참고
+- SDK 설치: [`SDK_VERSIONS.md`](./SDK_VERSIONS.md)
+- 연동 가이드: [`llms.txt`](./llms.txt)
+- 코드 예제: [`examples/`](./examples/)
 - 개발자 문서: https://developers.bootpay.ai

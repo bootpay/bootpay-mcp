@@ -1,13 +1,9 @@
 # Bootpay SDK 버전
 
-> **MCP 서버가 연결되어 있다면 `get_sdk_versions` 도구를 호출하세요.**
-> 항상 최신 버전을 반환합니다. 이 문서보다 정확합니다.
+> NPM/pip/gem 등 패키지 매니저는 버전 없이 설치하면 최신이 설치됩니다.
+> CDN URL은 정확한 버전 번호가 필요합니다 — 아래 표를 확인하세요.
 
-## MCP 미사용 시
-
-MCP를 설정하지 않은 상태라면, 아래를 참고하되 **버전이 outdated일 수 있습니다.**
-
-### 클라이언트 SDK
+## 클라이언트 SDK
 
 | 플랫폼 | 패키지 | 설치 |
 |--------|--------|------|
@@ -16,9 +12,9 @@ MCP를 설정하지 않은 상태라면, 아래를 참고하되 **버전이 outd
 | Android | `kr.co.bootpay:android` | `implementation 'kr.co.bootpay:android:{version}'` |
 | iOS | `Bootpay` | `pod 'Bootpay'` |
 | Flutter | `bootpay_flutter` | `flutter pub add bootpay_flutter` |
-| React Native | `@bootpay/react-native-bootpay` | `npm install @bootpay/react-native-bootpay` |
+| React Native | `react-native-bootpay-api` | `npm install react-native-bootpay-api` |
 
-### 서버 SDK
+## 서버 SDK
 
 | 언어 | 패키지 | 설치 |
 |------|--------|------|
@@ -28,9 +24,7 @@ MCP를 설정하지 않은 상태라면, 아래를 참고하되 **버전이 outd
 | Ruby | `bootpay` | `gem install bootpay` |
 | Go | `backend-go` | `go get github.com/bootpay/backend-go/v2` |
 | .NET | `Bootpay` | `dotnet add package Bootpay` |
-
-> NPM/pip/gem 등 패키지 매니저는 버전 없이 설치하면 최신이 설치됩니다.
-> CDN URL은 반드시 `get_sdk_versions`로 확인한 버전을 사용하세요.
+| PHP | `bootpay/backend-php` | `composer require bootpay/backend-php` |
 
 ## 주의
 
@@ -40,5 +34,5 @@ MCP를 설정하지 않은 상태라면, 아래를 참고하되 **버전이 outd
 
 ## 최신 버전 확인 방법
 
-1. **MCP 도구** (권장): `get_sdk_versions`
+1. **MCP 도구** (가장 정확): `get_sdk_versions` — 항상 최신 버전 반환
 2. **개발자 문서**: https://developers.bootpay.ai
