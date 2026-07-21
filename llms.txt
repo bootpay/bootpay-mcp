@@ -1,0 +1,264 @@
+# Bootpay
+
+> Bootpay는 한국의 결제·커머스 통합 플랫폼입니다.
+
+## 🔴 코드 작성 전 필수: Admin MCP 도구를 먼저 실행하세요
+
+**MCP Admin 도구가 있으면 (stdio 모드):**
+
+### 🏆 권장: generate_payment_code (1회 호출로 완료)
+```
+1. browser_login              → 로그인 (미인증 시)
+2. browser_select_project     → 프로젝트 선택 (미선택 시)
+3. generate_payment_code(platform="web", payment_type="payment", framework="react")
+   → 키체인/결제수단/SDK 자동 확인·해결 → 완성된 코드 반환
+```
+- 파라미터: platform(web/android/ios/flutter/react-native), payment_type(payment/billing/subscription/auth/widget), framework(react/vanilla/nextjs), scheduler(cron/http_trigger — subscription 전용)
+- "구독결제/멤버십/월정액" 요청은 payment_type="subscription" (회차 관리·중복결제 방지 배치·무료체험·해지 포함). billing은 빌링키 발급/결제 API 부품만
+- auto_setup=true(기본값): 키체인·결제수단 자동 생성/활성화
+
+### 대안: 수동 플로우
+```
+1. get_integration_context()  → 인증/프로젝트/결제설정/키체인 한 번에 확인
+   → readiness.ready = true  → 코드 작성 가능
+   → readiness.blockers 있음 → 아래 순서로 해결:
+2. browser_login              → 로그인 (미인증 시)
+3. browser_select_project     → 프로젝트 선택 (미선택 시)
+4. create_keychain(targets=["core"]) → API 키 발급 (키체인 없을 때)
+5. get_sdk_versions           → SDK 최신 버전 확인
+6. search_docs / get_doc      → 문서 참조 (보조)
+7. 코드 작성                   → .env 환경변수 참조
+```
+
+**MCP가 없으면 (이 저장소만 참조):**
+1. 사용자에게 admin.bootpay.ai에서 키를 확인하도록 안내
+2. 사용자가 제공한 키를 `.env`에 기록
+3. **사용자가 키를 제공하기 전까지 코드 생성을 진행하지 마세요**
+
+## 핵심 규칙
+
+- **Admin 도구 먼저, 문서는 보조** — 문서만 읽고 코드를 생성하면 실패. get_integration_context 먼저 호출
+- **SDK v2 (5.x) only** — v1 (3.x, 4.x)은 deprecated. 동작하지 않음
+- **결제는 프론트엔드에서 시작** — 국내 PG 규정. 백엔드에서 결제를 시작하는 코드 금지
+- **API 키 추측/생성 절대 금지** — placeholder, 랜덤 문자열 모두 100% 실패. create_keychain으로 발급
+- **키는 .env에만 저장** — 코드에 하드코딩 금지
+- **Secret Key는 서버 전용** — 절대 프론트엔드에 노출 금지
+- **클라이언트 + 서버 한 세트** — 서버 검증 코드 필수
+- **🔴 서버승인(분리승인)이 기본** — `extra.separately_confirmed: true` + confirm 시점에 receipt_id를 서버로 전달 → 서버가 `confirmPayment()`로 승인하고 **리턴값으로 금액 확인** (별도 결제검증 조회 불필요). done 이벤트만 처리하는 클라이언트 승인 코드를 기본으로 안내하지 말 것
+- **🔴 웹훅 보완 필수** — 클라이언트 결과 처리(confirm 이벤트/redirect)는 브라우저 이탈로 유실될 수 있음. 웹훅 수신 엔드포인트를 함께 구현하고, 부트페이 발신 IP 대역 `223.130.82.0/24`만 허용 + `receiptPayment`로 재검증 + 멱등 처리. 응답은 HTTP 200 + 본문 `{ "success": true }` 둘 다 필수
+- **🔴 price === sum(items[].price × items[].qty)** — items[].price에 정가가 아닌 "할인 적용된 실결제 단가"를 넣을 것. 불일치 시 결제 실패
+
+### .env 키 구성
+
+| 키 | 용도 | .env 변수명 |
+|----|------|------------|
+| Client Key | 프론트엔드 SDK + 서버 Basic Auth 공통 | `VITE_BOOTPAY_CLIENT_KEY` (Vite), `NEXT_PUBLIC_BOOTPAY_CLIENT_KEY` (Next.js), `BOOTPAY_CLIENT_KEY` (서버) |
+| Secret Key | 서버 Basic Auth (비밀) | `BOOTPAY_SECRET_KEY` |
+
+## API 도메인
+
+| 도메인 | 용도 |
+|--------|------|
+| `api.bootpay.co.kr` | PG API — 결제 처리, 취소, 검증 |
+| `api.bootapi.com` | Commerce API — 주문, 구독, 상품, 고객 |
+
+## SDK 패키지
+
+### 클라이언트
+
+| 플랫폼 | 패키지 | 설치 |
+|--------|--------|------|
+| Web (NPM) | `@bootpay/client-js` | `npm install @bootpay/client-js` |
+| Web (CDN) | bootpay JS | `<script src="https://js.bootpay.co.kr/bootpay-{version}.min.js">` |
+| Android | `kr.co.bootpay:android` | `implementation 'kr.co.bootpay:android:+'` |
+| iOS | `Bootpay` | `pod 'Bootpay'` |
+| Flutter | `bootpay_flutter` | `flutter pub add bootpay_flutter` |
+| React Native | `react-native-bootpay-api` | `npm install react-native-bootpay-api` |
+
+### 서버
+
+| 언어 | 패키지 | 설치 |
+|------|--------|------|
+| Node.js | `@bootpay/backend-js` | `npm install @bootpay/backend-js` |
+| Python | `bootpay-backend` | `pip install bootpay-backend` |
+| Java | `kr.co.bootpay:backend` | Maven/Gradle |
+| Ruby | `bootpay` | `gem install bootpay` |
+| Go | `backend-go` | `go get github.com/bootpay/backend-go/v2` |
+| .NET | `Bootpay` | `dotnet add package Bootpay` |
+| PHP | `bootpay/backend-php` | `composer require bootpay/backend-php` |
+
+> CDN URL의 `{version}`은 정확한 버전이 필요합니다. [`SDK_VERSIONS.md`](./SDK_VERSIONS.md) 참고.
+> NPM/pip/gem은 버전 없이 설치하면 최신이 설치됩니다.
+
+## 결제 흐름 (서버승인 — 기본)
+
+```
+1. 프론트엔드: Bootpay.requestPayment({ ..., extra: { separately_confirmed: true } })
+2. 결제창 진행 → confirm 시점 수신
+   - iframe/popup: response.event === 'confirm'
+   - redirect: redirect_url?event=confirm&receipt_id=...
+3. 프론트엔드: receipt_id를 자체 서버 /api/confirm 으로 전달 (승인은 하지 않음)
+4. 서버: (재고 등 확인 후) confirmPayment(receipt_id) 최종 승인 → **리턴값의 price를 DB 주문 금액과 대조**
+   (불일치 시 cancelPayment 자동 취소. 별도 결제검증 조회는 불필요 — 리턴값으로 확인)
+5. 프론트엔드: 결과 페이지에서 서버 DB 조회(polling)로 결과 표시 (done 이벤트는 오지 않음)
+6. 웹훅: 결제 완료/취소 통지 수신으로 유실 보완 (IP 필터 223.130.82.0/24 + 재검증 + 멱등)
+```
+
+> 클라이언트 승인(separately_confirmed 미설정, done 이벤트 자동 승인)은 유실 위험이 있어 비권장.
+> 페이앱/페이레터/키움페이는 분리승인 자체를 미지원 → separately_confirmed: false + done 이벤트 후 결제 조회 API로 사후 검증 (문제 시 취소).
+> 웹훅 응답은 HTTP 200 + 본문 { "success": true } 둘 다 필수. webhook_type(SDK 5.x+)으로 분기 — 부분취소/전체취소는 status만으로 구분 불가.
+
+## 정기결제(빌링) 흐름
+
+1. 프론트: Bootpay.requestSubscription({ subscription_id, method: '카드자동'(Web)/'card_rebill'(모바일), price: 0 })
+2. done 이벤트 → receipt_id만 서버로 전달 (billing_key는 보안상 프론트로 오지 않음)
+3. 서버: lookupSubscribeBillingKey(receipt_id) → billing_key DB 저장 (billing_keys + recurring_payments 스키마)
+   - 응답 필드: billing_key, status('11'=빌링키발급완료), billing_data.card_company / billing_data.card_no(마스킹)
+   - ❌ 최상위 card_name·card_last4 필드는 없습니다 (billing_data 안에서 꺼내 쓸 것)
+4. 자동결제: 서버 requestSubscribePayment({ billing_key, price, ... }) — 호출 1회당 1회 시도, 자동 재시도·스케줄링 없음
+5. 예약결제: subscribePaymentReserve(reserve_execute_at) / 취소 cancelSubscribeReserve — 빌링키당 10건 제한
+6. 해지: 대기 예약 취소 → destroyBillingKey
+
+## 구독(월 정기과금) 흐름 — 빌링키 위에 얹는 상태 관리
+
+빌링키 결제 API 호출보다 **회차 상태 관리**가 어렵습니다. 아래를 빠뜨리면 이중 결제·미납 방치·해지 후 청구가 납니다.
+
+1. 데이터 모델: subscriptions(구독) 1 : N subscription_cycles(회차). 회차마다 charge_at / price / status(pending·charging·paid·failed·cancelled) / service_start~service_end / receipt_id
+2. 배치(매일 1회, 우리 서버가 실행): `status='pending' AND charge_at <= now` 인 회차 조회
+3. 🔴 중복 결제 방지: `UPDATE cycles SET status='charging' WHERE id=? AND status='pending'` 로 **선점**하고 1행이 바뀐 경우에만 결제 (배치 2회 실행돼도 1건만 결제)
+4. order_id는 시도마다 고유 — `sub{id}_c{회차}_a{시도}`
+5. 성공(선불): 이 회차에 service_start~service_end 기록 → 다음 회차 pending 생성(금액은 가격 변경 적용일 반영)
+6. 실패: 이용기간을 열지 않고 charge_at을 재시도일로 미뤄 pending 복귀. N회 초과 → 회차 failed + 구독 paused
+7. 무료체험: 첫 회차 charge_at만 뒤로. 체험 중 해지는 첫 회차를 cancelled로
+8. 해지: 미결제 회차를 cancelled로 닫아 청구 중단. 즉시 해지 환불은 잔여기간 일할 계산 후 cancelPayment(cancel_price, cancel_id) 부분취소
+9. 해지 ≠ 빌링키 삭제 — 빌링키는 다른 구독·주문에도 물려 있을 수 있으므로 다른 참조가 없을 때만 삭제
+10. ⚖️ 무료→유료 전환·가격 인상: 여신전문금융업법 7일 전 고지 + 전자상거래법(2025.2) 30일 이내 동의 (가격 인상은 동의를 새로 받아야 함)
+11. 서버리스(Vercel/Lambda 등)는 node-cron이 동작하지 않음 → 플랫폼 스케줄러가 배치 엔드포인트를 HTTP 호출(비밀 헤더로 보호)
+12. 테스트: 주기를 하루/몇 분으로 줄여 1회차 결제·이월 확인 + **배치 2회 실행 시 결제 1건** 확인 + 무료체험/실패/카드변경/가격변경/해지까지
+
+## 본인인증 흐름
+
+1. 프론트: Bootpay.requestAuthentication({ authentication_id, pg: 'danal'(Web)/'다날'(모바일), method: 'auth'(Web)/'본인인증'(모바일) })
+2. done 이벤트 → receipt_id만 서버로 전달 (이름·생년월일 등 인증 정보는 클라이언트로 오지 않음)
+3. 서버: certificate(receipt_id) 조회 → status 12(본인인증완료)일 때만 완료 처리
+4. authenticate_data에서 필요한 값만 저장 — unique(DI)로 동일인 식별·중복가입 방지
+5. 클라이언트가 보낸 개인정보를 믿지 말고 서버 조회값으로 저장. 유효시간 30분(AUTH_EXPIRED)
+
+## 통합결제창 vs 단일 결제창
+
+| 구분 | pg/method 파라미터 | 동작 |
+|------|:------------------:|------|
+| **통합결제창** | **생략** | 관리자에서 활성화한 모든 PG·결제수단을 하나의 창에 표시 → 사용자가 선택 |
+| **단일 결제창** | **지정** | 지정한 PG·결제수단으로 바로 이동 |
+
+- **통합결제창 사용 조건**: 관리자에서 **2개 이상의 결제수단을 활성화** (MCP: `activate_payment_method` 여러 번 호출)
+- **코드 차이**: `pg`와 `method` 파라미터를 생략하면 통합결제창, 지정하면 단일 결제창
+- **결제수단이 1개만 활성화**된 경우: 통합결제창 없이 해당 결제수단으로 바로 이동
+- **서버 검증은 동일**: 통합이든 단일이든 `receipt_id` 기반 검증 로직은 동일
+
+```javascript
+// 통합결제창 (pg, method 생략)
+await Bootpay.requestPayment({
+  client_key: 'CLIENT_KEY',
+  price: 50000,
+  order_name: '상품명',
+  order_id: 'order_123',
+  // pg, method 없음 → 통합결제창
+})
+
+// 단일 결제창 (pg, method 지정)
+await Bootpay.requestPayment({
+  client_key: 'CLIENT_KEY',
+  price: 50000,
+  order_name: '상품명',
+  order_id: 'order_123',
+  pg: 'nicepay',
+  method: 'card',
+})
+```
+
+## 연동 예제
+
+[`examples/`](./examples/) 폴더에 플랫폼별 전체 코드 예제가 있습니다:
+
+| 파일 | 내용 |
+|------|------|
+| `web-vanilla.md` | 바닐라 JS 결제 (단일 PG/결제수단) |
+| `web-react.md` | React 결제 연동 (단일 PG/결제수단) |
+| `unified-payment.md` | 통합결제창 (pg/method 생략, 사용자 선택) |
+| `android.md` | Android (Kotlin) 결제 |
+| `ios.md` | iOS (Swift) 결제 |
+| `flutter.md` | Flutter 결제 |
+| `react-native.md` | React Native 결제 |
+| `widget.md` | 결제위젯 (임베드 UI) |
+| `billing.md` | 정기결제 (빌링키) |
+| `authentication.md` | 본인인증 (인증창 + 서버 조회·저장) |
+| `server-auth.md` | 서버 토큰 발급 |
+| `server-verify.md` | 서버 결제 검증 |
+| `server-cancel.md` | 서버 결제 취소/환불 |
+| `server-billing.md` | 서버 자동결제/예약결제 |
+
+## 문서 카테고리
+
+payment · billing · subscription · order · customer · product · webhook · guide · integration · invoice · recipes · architecture
+
+## MCP 서버 (필수 권장)
+
+### 세션 프리플라이트
+
+MCP가 연결되어 있어도 전송 방식에 따라 사용 가능한 도구가 다릅니다:
+
+| 전송 방식 | Docs (7개) | Admin (34개) | Commerce (13개) | 키 자동 조회 |
+|-----------|:----------:|:------------:|:---------------:|:----------:|
+| **stdio** (`npx @bootpay/mcp`) | O | O | opt-in | O |
+| **HTTP** (`mcp.bootpay.ai/mcp`) | O | — | — | — |
+| **MCP 없음** | — | — | — | — |
+
+설정 후 **새 세션을 시작**해야 반영됩니다. 확인: `codex mcp list` / `claude mcp list` / `gemini mcp list`
+
+MCP를 stdio로 연결하면 AI가 로그인→프로젝트 설정→API 키 발급→코드 생성까지 자동 처리합니다.
+HTTP로 연결하면 문서 검색만 가능하며, API 키는 사용자가 admin.bootpay.ai에서 직접 확인해야 합니다.
+
+```bash
+# Claude Code
+claude mcp add bootpay -- npx -y @bootpay/mcp
+
+# Codex (OpenAI) — ~/.codex/config.toml
+# [mcp_servers.bootpay]
+# command = "npx"
+# args = ["-y", "@bootpay/mcp"]
+
+# Gemini CLI — ~/.gemini/settings.json
+# { "mcpServers": { "bootpay": { "command": "npx", "args": ["-y", "@bootpay/mcp"] } } }
+
+# Cursor / Windsurf / Cline — HTTP
+# URL: https://mcp.bootpay.ai/mcp
+```
+
+### Admin CLI: AI로 프로젝트 설정
+
+Bootpay가 처음이면 MCP Admin 도구로 관리자 화면 대신 AI가 프로젝트를 설정합니다.
+stdio 방식(`npx @bootpay/mcp`)에서만 사용 가능합니다.
+
+```
+① browser_login              → 브라우저 팝업으로 로그인
+② create_seller              → 셀러 생성 + 기본 프로젝트 자동 생성
+③ browser_select_project     → 프로젝트 선택
+④ activate_payment_method    → PG 결제수단 활성화
+⑤ set_sandbox_mode           → 테스트 모드 설정
+⑥ create_keychain(targets=["core"]) → 결제용 API 키 발급 (client_key, secret_key)
+  또는 list_keychains(source=core) → 기존 키 조회 (secret_key 마스킹됨)
+⑦ 키를 .env에 저장             → 코드에서 환경변수로 참조 (하드코딩 금지)
+```
+
+**키 저장 규칙:**
+- 클라이언트 키(Client Key): `.env` 파일에 프레임워크별 접두사 사용 (`VITE_`, `NEXT_PUBLIC_` 등)
+- 서버 키(Client Key, Secret Key): `.env` 파일에 저장 (서버 전용, Basic Auth 인증)
+- Secret Key는 **절대** 프론트엔드 코드나 클라이언트 `.env`에 넣지 않을 것
+- **getAccessToken() 불필요** — client_key/secret_key 기반 Basic Auth로 자동 인증
+
+## 링크
+
+- 개발자 문서: https://developers.bootpay.ai
+- 관리자: https://admin.bootpay.ai
+- MCP 서버: https://mcp.bootpay.ai/mcp
