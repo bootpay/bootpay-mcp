@@ -1,0 +1,393 @@
+==============================================================================
+부트페이 결제 연동 — Content-Security-Policy(CSP) 허용 도메인 안내
+==============================================================================
+
+결제 버튼을 눌렀는데 아무 일도 일어나지 않는다면, 대부분 이 문서의 문제입니다.
+브라우저 개발자도구(F12) 콘솔에 아래와 비슷한 빨간 줄이 있는지 먼저 확인하세요.
+
+    Refused to frame 'https://...' because it violates the following
+    Content Security Policy directive: "frame-src ..."
+
+이 메시지가 보이면 부트페이 장애도, 연동키(Client Key) 문제도 아닙니다.
+고객사 웹서버가 내보내는 보안 헤더(CSP)가 결제창을 막고 있는 것입니다.
+
+※ CSP 를 설정한 적이 없다면 이 문서는 필요 없습니다. 결제창은 그냥 뜹니다.
+
+──────────────────────────────────────────────────────────────────────────────
+1. 가장 빠른 해결 — frame-src 에 아래 값을 넣으세요
+──────────────────────────────────────────────────────────────────────────────
+
+결제창을 막는 지시어는 frame-src 하나입니다. (iframe-src 라는 지시어는 없습니다)
+frame-src 를 아예 선언하지 않으면 default-src 로 폴백되므로,
+default-src 'self' 만 있어도 똑같이 막힙니다.
+
+■ 전체 PG·카드사를 모두 허용하는 값 (어떤 PG 를 쓰는지 모를 때)
+
+    'self'
+    https://*.bootpay.co.kr
+    https://*.lightpay.kr
+    https://lightpay.kr
+    https://*.nicepay.co.kr
+    https://*.settlebank.co.kr
+    https://settlebank.co.kr
+    https://*.inicis.com
+    https://*.kcp.co.kr
+    https://*.tosspayments.com
+    https://*.smartropay.co.kr
+    https://*.smartro.co.kr
+    https://*.teledit.com
+    https://teledit.com
+    https://*.danalpay.com
+    https://danalpay.com
+    https://*.danal.co.kr
+    https://danal.co.kr
+    https://*.payletter.com
+    https://*.payapp.kr
+    https://*.easypay.co.kr
+    https://*.welcomepayments.co.kr
+    https://welcomepayments.co.kr
+    https://*.payco.com
+    https://payco.com
+    https://*.kakao.com
+    https://*.kakaopay.com
+    https://kakaopay.com
+    https://*.naver.com
+    https://*.mobilians.co.kr
+    https://*.ksnet.co.kr
+    https://*.kspay.co.kr
+    https://*.jtnet.co.kr
+    https://jtnet.co.kr
+    https://*.paypal.com
+    https://*.stripe.com
+    https://*.stripe.network
+    https://*.kbcard.com
+    https://*.bccard.com
+    https://*.lottecard.co.kr
+    https://*.shinhancard.com
+    https://*.hyundaicard.com
+    https://*.hanacard.co.kr
+    https://*.samsungcard.co.kr
+    https://*.nonghyup.com
+    https://*.wooricard.com
+    https://dacs.wooricard.com:8886
+    https://*.citibank.co.kr
+    https://*.vpay.co.kr
+    https://vpay.co.kr
+    https://*.daum.net
+    https://*.daumcdn.net
+    https://*.channel.io
+
+한 줄로 붙인 헤더 값:
+
+    frame-src 'self' https://*.bootpay.co.kr https://*.lightpay.kr
+    https://lightpay.kr https://*.nicepay.co.kr https://*.settlebank.co.kr
+    https://settlebank.co.kr https://*.inicis.com https://*.kcp.co.kr
+    https://*.tosspayments.com https://*.smartropay.co.kr
+    https://*.smartro.co.kr https://*.teledit.com https://teledit.com
+    https://*.danalpay.com https://danalpay.com https://*.danal.co.kr
+    https://danal.co.kr https://*.payletter.com https://*.payapp.kr
+    https://*.easypay.co.kr https://*.welcomepayments.co.kr
+    https://welcomepayments.co.kr https://*.payco.com https://payco.com
+    https://*.kakao.com https://*.kakaopay.com https://kakaopay.com
+    https://*.naver.com https://*.mobilians.co.kr https://*.ksnet.co.kr
+    https://*.kspay.co.kr https://*.jtnet.co.kr https://jtnet.co.kr
+    https://*.paypal.com https://*.stripe.com https://*.stripe.network
+    https://*.kbcard.com https://*.bccard.com https://*.lottecard.co.kr
+    https://*.shinhancard.com https://*.hyundaicard.com
+    https://*.hanacard.co.kr https://*.samsungcard.co.kr
+    https://*.nonghyup.com https://*.wooricard.com
+    https://dacs.wooricard.com:8886 https://*.citibank.co.kr
+    https://*.vpay.co.kr https://vpay.co.kr https://*.daum.net
+    https://*.daumcdn.net https://*.channel.io
+
+운영 PG 가 정해져 있다면 아래 3·4장에서 해당 항목만 골라 쓰면 목록이 짧아집니다.
+
+──────────────────────────────────────────────────────────────────────────────
+2. 어디에 넣나요 — 환경별 설정 위치
+──────────────────────────────────────────────────────────────────────────────
+
+  Vercel              vercel.json 의 headers
+  Next.js             next.config.js 의 async headers()  또는 middleware.ts
+  Nuxt                nuxt.config.ts 의 routeRules
+  nginx               server 블록의 add_header Content-Security-Policy "..." always;
+  Express             helmet.contentSecurityPolicy({ directives: { ... } })
+  헤더를 못 만질 때   HTML <head> 의 <meta http-equiv="Content-Security-Policy" content="...">
+
+⚠️ 여러 곳에 동시에 설정돼 있으면 마지막에 적용되는 하나만 유효합니다.
+   (Vercel/Next.js 는 middleware.ts 가 vercel.json·next.config 를 이깁니다)
+   실제로 나가는 값은 아래로 확인하세요.
+
+    curl -sI https://내도메인 | grep -i content-security-policy
+
+운영 반영 전에는 Content-Security-Policy-Report-Only 로 먼저 돌려
+위반만 수집해 보는 방법도 있습니다.
+
+──────────────────────────────────────────────────────────────────────────────
+3. PG 결제창 도메인
+──────────────────────────────────────────────────────────────────────────────
+
+■ 부트페이 연동이면 PG 무관하게 항상 필요
+
+    https://*.bootpay.co.kr
+    https://*.lightpay.kr
+    https://lightpay.kr
+
+■ 주소검색(다음 우편번호)·상담 위젯을 쓴다면
+
+    https://*.daum.net
+    https://*.daumcdn.net
+    https://*.channel.io
+
+■ 사용 중인 PG 에 해당하는 값
+
+  라이트페이
+      https://*.lightpay.kr https://lightpay.kr
+     ⚠️ 결제 모듈이 세틀뱅크·나이스페이먼츠 로 넘어갑니다 — 그 값도 반드시 함께 넣으세요
+
+  나이스페이먼츠
+      https://*.nicepay.co.kr
+
+  세틀뱅크 (헥토파이낸셜)
+      https://*.settlebank.co.kr https://settlebank.co.kr
+
+  KG이니시스
+      https://*.inicis.com
+
+  NHN KCP
+      https://*.kcp.co.kr
+
+  토스페이먼츠
+      https://*.tosspayments.com
+
+  스마트로
+      https://*.smartropay.co.kr https://*.smartro.co.kr
+
+  다날
+      https://*.teledit.com https://teledit.com https://*.danalpay.com
+      https://danalpay.com https://*.danal.co.kr https://danal.co.kr
+
+  페이레터
+      https://*.payletter.com
+
+  페이앱
+      https://*.payapp.kr
+
+  KICC 이지페이
+      https://*.easypay.co.kr
+
+  웰컴페이먼츠
+      https://*.welcomepayments.co.kr https://welcomepayments.co.kr
+     ※ 결제창 주소 미확정. 막히면 콘솔에 찍힌 도메인을 추가하세요
+
+  페이코
+      https://*.payco.com https://payco.com
+
+  카카오페이
+      https://*.kakao.com https://*.kakaopay.com https://kakaopay.com
+
+  네이버페이
+      https://*.naver.com
+
+  KG모빌리언스
+      https://*.mobilians.co.kr
+
+  KSNET
+      https://*.ksnet.co.kr https://*.kspay.co.kr
+
+  JTNet
+      https://*.jtnet.co.kr https://jtnet.co.kr
+     ※ 결제창 주소 미확정. 막히면 콘솔에 찍힌 도메인을 추가하세요
+
+  티페이
+      https://*.settlebank.co.kr https://settlebank.co.kr
+     ※ 결제창 주소 미확정. 막히면 콘솔에 찍힌 도메인을 추가하세요
+
+  PayPal
+      https://*.paypal.com
+
+  Stripe
+      https://*.stripe.com https://*.stripe.network
+
+※ 샌드박스와 운영의 결제창 도메인이 다른 PG 가 있습니다.
+   (예: sandbox-pay.nicepay.co.kr ↔ pay.nicepay.co.kr)
+   위처럼 와일드카드(*)로 넣으면 둘 다 덮이므로 운영 전환 시 재발하지 않습니다.
+
+──────────────────────────────────────────────────────────────────────────────
+4. 카드사 인증(3-D Secure·안심클릭) 도메인 — 빠뜨리기 쉽습니다
+──────────────────────────────────────────────────────────────────────────────
+
+PG 결제창 안에서 카드 인증 단계로 넘어가면 카드사 자체 서버가 열립니다.
+PG 도메인만 허용하면 "결제창은 떴는데 카드를 고르니 멈춘다" 가 됩니다.
+카드결제를 받는다면 아래 값이 모두 필요합니다.
+
+  KB국민카드
+      https://*.kbcard.com
+  BC카드
+      https://*.bccard.com
+  롯데카드
+      https://*.lottecard.co.kr
+  신한카드
+      https://*.shinhancard.com
+  현대카드
+      https://*.hyundaicard.com
+  하나카드
+      https://*.hanacard.co.kr
+  삼성카드
+      https://*.samsungcard.co.kr
+  NH농협카드
+      https://*.nonghyup.com
+  우리카드
+      https://*.wooricard.com   https://dacs.wooricard.com:8886
+  씨티카드
+      https://*.citibank.co.kr
+  VPay (카드사 공동)
+      https://*.vpay.co.kr   https://vpay.co.kr
+
+  ┌────────────────────────────────────────────────────────────────────┐
+  │ 🔴 우리카드는 포트(:8886)까지 반드시 적어야 합니다                 │
+  │                                                                    │
+  │ CSP 는 포트를 생략하면 기본 포트(443)만 허용합니다. 우리카드 인증  │
+  │ 서버는 8886 포트에서만 응답하므로, https://*.wooricard.com 만      │
+  │ 넣으면 덮이지 않습니다. 놓치면 다른 카드는 되는데 우리카드        │
+  │ 사용자만 결제가 실패합니다.                                        │
+  └────────────────────────────────────────────────────────────────────┘
+
+※ 아래는 실제 인증 서버인지 확인되지 않아 목록에서 제외했습니다.
+   해당 카드에서 막히면 콘솔에 찍힌 도메인을 그대로 추가하세요.
+     신협 · 전북은행 · 광주은행 · 수협
+
+──────────────────────────────────────────────────────────────────────────────
+5. 본인인증(휴대폰 인증)을 쓴다면 추가
+──────────────────────────────────────────────────────────────────────────────
+
+    https://nice.checkplus.co.kr
+    https://*.mobile-ok.com
+    https://*.kmcert.com
+    https://*.vno.co.kr
+    https://*.teledit.com
+
+──────────────────────────────────────────────────────────────────────────────
+6. 반드시 지켜야 할 3가지
+──────────────────────────────────────────────────────────────────────────────
+
+① 원래 없던 지시어를 새로 만들지 마세요
+
+   frame-src 외에 script-src·img-src·connect-src·form-action 을 "새로" 추가하면
+   기존에 없던 제약이 생깁니다. 특히 script-src 를 새로 넣는 순간
+   그 사이트의 애널리틱스·챗봇·광고 스크립트가 전부 차단됩니다.
+   결제를 고치려다 사이트를 망가뜨리게 됩니다.
+
+   해당 지시어를 "이미 쓰고 있는 경우에만" 아래 값을 병합하세요.
+
+   ▸ form-action  — 이니시스·KCP 모바일은 form 전송으로 결제창을 전환합니다
+       'self' https://*.bootpay.co.kr https://*.lightpay.kr
+       https://lightpay.kr https://*.nicepay.co.kr
+       https://*.settlebank.co.kr https://settlebank.co.kr
+       https://*.inicis.com https://*.kcp.co.kr https://*.tosspayments.com
+       https://*.smartropay.co.kr https://*.smartro.co.kr
+       https://*.teledit.com https://teledit.com https://*.danalpay.com
+       https://danalpay.com https://*.danal.co.kr https://danal.co.kr
+       https://*.payletter.com https://*.payapp.kr https://*.easypay.co.kr
+       https://*.welcomepayments.co.kr https://welcomepayments.co.kr
+       https://*.payco.com https://payco.com https://*.kakao.com
+       https://*.kakaopay.com https://kakaopay.com https://*.naver.com
+       https://*.mobilians.co.kr https://*.ksnet.co.kr
+       https://*.kspay.co.kr https://*.jtnet.co.kr https://jtnet.co.kr
+       https://*.paypal.com https://*.stripe.com https://*.stripe.network
+       https://*.kbcard.com https://*.bccard.com https://*.lottecard.co.kr
+       https://*.shinhancard.com https://*.hyundaicard.com
+       https://*.hanacard.co.kr https://*.samsungcard.co.kr
+       https://*.nonghyup.com https://*.wooricard.com
+       https://dacs.wooricard.com:8886 https://*.citibank.co.kr
+       https://*.vpay.co.kr https://vpay.co.kr
+
+   ▸ connect-src  — 결제 승인·상태 조회 통신
+       'self' https://*.bootpay.co.kr https://*.lightpay.kr
+       https://lightpay.kr https://*.nicepay.co.kr
+       https://*.settlebank.co.kr https://settlebank.co.kr
+       https://*.inicis.com https://*.kcp.co.kr https://*.tosspayments.com
+       https://*.smartropay.co.kr https://*.smartro.co.kr
+       https://*.teledit.com https://teledit.com https://*.danalpay.com
+       https://danalpay.com https://*.danal.co.kr https://danal.co.kr
+       https://*.payletter.com https://*.payapp.kr https://*.easypay.co.kr
+       https://*.welcomepayments.co.kr https://welcomepayments.co.kr
+       https://*.payco.com https://payco.com https://*.kakao.com
+       https://*.kakaopay.com https://kakaopay.com https://*.naver.com
+       https://*.mobilians.co.kr https://*.ksnet.co.kr
+       https://*.kspay.co.kr https://*.jtnet.co.kr https://jtnet.co.kr
+       https://*.paypal.com https://*.stripe.com https://*.stripe.network
+
+   ▸ script-src  — 부트페이 SDK·주소검색 스크립트
+       'self' 'unsafe-inline' https://*.bootpay.co.kr https://*.lightpay.kr
+       https://lightpay.kr https://*.daum.net https://*.daumcdn.net
+       https://*.channel.io
+
+   ▸ img-src  — 카드사 로고·QR (data:/blob:)
+       'self' data: blob: https://*.bootpay.co.kr https://*.lightpay.kr
+       https://lightpay.kr https://*.nicepay.co.kr
+       https://*.settlebank.co.kr https://settlebank.co.kr
+       https://*.inicis.com https://*.kcp.co.kr https://*.tosspayments.com
+       https://*.smartropay.co.kr https://*.smartro.co.kr
+       https://*.teledit.com https://teledit.com https://*.danalpay.com
+       https://danalpay.com https://*.danal.co.kr https://danal.co.kr
+       https://*.payletter.com https://*.payapp.kr https://*.easypay.co.kr
+       https://*.welcomepayments.co.kr https://welcomepayments.co.kr
+       https://*.payco.com https://payco.com https://*.kakao.com
+       https://*.kakaopay.com https://kakaopay.com https://*.naver.com
+       https://*.mobilians.co.kr https://*.ksnet.co.kr
+       https://*.kspay.co.kr https://*.jtnet.co.kr https://jtnet.co.kr
+       https://*.paypal.com https://*.stripe.com https://*.stripe.network
+
+② 기존 CSP 를 통째로 덮어쓰지 마세요
+
+   이미 CSP 헤더가 있다면 frame-src 값만 병합하세요.
+   설정 파일의 다른 항목(rewrites, redirects 등)도 그대로 두어야 합니다.
+
+③ 이 목록보다 콘솔이 정확합니다
+
+   PG 와 카드사는 도메인을 바꿉니다. 콘솔 에러의
+   Refused to frame 'https://...' 안에 찍힌 도메인이 언제나 정답입니다.
+   목록에 없는 도메인이 나오면 그 값을 그대로 추가하세요.
+
+──────────────────────────────────────────────────────────────────────────────
+7. CSP 를 건드릴 수 없다면 — redirect 방식
+──────────────────────────────────────────────────────────────────────────────
+
+보안팀 정책이나 권한 문제로 헤더를 못 만지는 경우, 결제창을 iframe 이 아니라
+페이지 이동(redirect) 방식으로 열면 frame-src 를 아예 거치지 않습니다.
+즉 CSP 와 무관하게 결제가 진행됩니다.
+
+    extra: {
+      open_type: 'redirect',
+      redirect_url: 'https://내도메인/payment/result',   // 필수
+    }
+
+주의 — 방식에 따라 결과를 받는 곳이 달라집니다.
+
+    iframe / popup   →  SDK 의 confirm 콜백으로 옵니다
+    redirect         →  redirect_url 페이지의 쿼리 파라미터로 옵니다
+                        (event / receipt_id / order_id / status / message)
+
+기기에 따라 방식을 나눈다면(PC=iframe, 모바일=redirect) 양쪽 처리를 모두
+구현해야 합니다. 한쪽만 구현하면 그 경로의 사용자는 결과를 받지 못합니다.
+
+참고로 모바일에서는 redirect 를 권장합니다. 결제창이 중첩 iframe 구조라
+PG·결제수단·브라우저 조합에 따라 화면이 열리지 않는 경우가 있고,
+그런 경우는 CSP 를 열어도 해결되지 않습니다.
+
+──────────────────────────────────────────────────────────────────────────────
+8. 그래도 막힌다면
+──────────────────────────────────────────────────────────────────────────────
+
+  1) 콘솔(F12)의 Refused to frame 문구에서 도메인을 확인해 그대로 추가
+  2) curl -sI 로 실제 나가는 헤더 확인 (설정이 다른 곳에서 덮이고 있는지)
+  3) 위를 다 했는데도 모바일만 안 된다면 7장의 redirect 방식으로 전환
+
+  문의: 부트페이 채널톡 상담  ·  개발 문서: https://developers.bootpay.ai
+
+==============================================================================
+본 목록은 각 도메인의 DNS 조회·HTTPS 응답·TLS 인증서 발급 주체를 대조해 확인했습니다.
+PG·카드사 사정으로 도메인이 변경될 수 있으므로, 콘솔 에러 메시지를 항상 우선하세요.
+
+생성: @bootpay/mcp 2.10.0  ·  최종 확인 2026-08-27
+==============================================================================
