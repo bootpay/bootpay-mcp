@@ -5,7 +5,7 @@ import { TOOL_READ_LOCAL } from '../lib/tool-annotations.js';
 export function registerTroubleshootingTool(server: McpServer): void {
   server.tool(
     'get_troubleshooting',
-    '연동 중 자주 발생하는 문제의 원인과 해결 방법을 안내합니다.',
+    '결제 연동에서 자주 막히는 문제 하나(topic)의 원인 · 확인 순서 · 해결 방법을 정리한 안내서를 돌려줍니다. 「결제창이 안 뜬다」·「웹훅이 안 온다」·「심사가 안 끝난다」처럼 증상이 있을 때 topic 을 골라 부르고, 결과의 확인 순서대로 사용자에게 안내하세요. 에러 코드 하나의 뜻은 topic="error". (조회 전용, 네트워크를 쓰지 않습니다)',
     {
       topic: z
         .enum(['onboarding', 'sandbox', 'webhook', 'billing', 'subscription', 'error', 'cancel', 'cors', 'csp', 'local-network', 'open-type', 'mobile', 'widget', 'unified', 'certification'])

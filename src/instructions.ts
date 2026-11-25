@@ -6,11 +6,13 @@
  * 2026-09-23 전에는 한 덩어리 4.2만 자라 붙는 순간 컨텍스트를 크게 먹었다. 코드를 직접 쓸 때 필요한 세부
  * (open_type·승인 방식·redirect 파라미터·웹훅·정기결제·구독·본인인증·용어집)는 get_doc('mcp/payment-rules') 로 옮겼다.
  */
-import { TOOLSET_NAMES, TOOLSET_DESCRIPTIONS, type ToolsetName } from './toolsets.js';
+import { DEFAULT_DOOR_NOTICE, DOORS, TOOLSET_NAMES, TOOLSET_DESCRIPTIONS, type DoorName, type ToolsetName } from './toolsets.js';
 
 export interface InstructionsOptions {
-    /** 켜진 묶음. docs 는 항상 있다고 본다 */
+    /** 켜진 묶음. 문(door) 없이 띄우면 docs 는 항상 있다고 본다 */
     toolsets: readonly ToolsetName[];
+    /** stdio 를 문으로 띄웠을 때의 문 이름. 알림톡 · 쇼핑몰 운영 문에는 결제 연동용 docs 가 없다 */
+    door?: DoorName;
     /** stdio = 로컬(npx), remote = Workers(HTTP). 원격에는 로그인·결제 설정 도구가 없다 */
     mode: 'stdio' | 'remote';
 }
@@ -230,7 +232,7 @@ const ALIMTALK = `
 - 채널이 없으면 \`alimtalk_list_categories\` → \`alimtalk_request_sender_otp\`(실제 문자 발송) → 사용자에게 인증번호를 물어 \`alimtalk_register_sender\`
 
 **2. 템플릿은 공식 먼저, 없으면 자체**
-- 보낼 문장이 있으면 \`alimtalk_recommend_official_templates(text)\` 부터. 공식 템플릿은 그룹키 채널이면 검수 없이 바로 발송됩니다. **검색에 없는 템플릿 코드를 지어내지 마세요**
+- 보낼 문장이 있으면 \`alimtalk_search_official_templates(text)\` 부터. 공식 템플릿은 그룹키 채널이면 검수 없이 바로 발송됩니다. **검색에 없는 템플릿 코드를 지어내지 마세요**
 - 맞는 게 없으면 \`alimtalk_create_template\`(기본 초안) → 사용자 확인 → \`alimtalk_register_template\` → \`alimtalk_request_inspection\`(취소 불가). 카카오 승인(APR)까지 영업일이 걸립니다
 - 알림톡은 **정보성** 채널입니다. 할인 · 이벤트 · 신상품 홍보는 반려됩니다
 
@@ -266,7 +268,7 @@ const PAGE = `
 `.trim();
 
 function toolsetSection(opts: InstructionsOptions): string {
-    const enabled = new Set<ToolsetName>(['docs', ...opts.toolsets]);
+    const enabled = new Set<ToolsetName>(opts.door ? opts.toolsets : ['docs', ...opts.toolsets]);
     const on = TOOLSET_NAMES.filter(n => enabled.has(n));
     const off = TOOLSET_NAMES.filter(n => !enabled.has(n));
     const lines = [
@@ -274,10 +276,12 @@ function toolsetSection(opts: InstructionsOptions): string {
         '',
         `- 켜짐: ${on.map(n => `\`${n}\``).join(', ')}`,
     ];
+    if (opts.door) lines.splice(2, 0, `- 이 세션은 「${DOORS[opts.door].name}」 문입니다 — ${DOORS[opts.door].who}`);
+    if (!opts.door && opts.mode === 'stdio' && opts.toolsets.includes('alimtalk')) lines.push(`- ${DEFAULT_DOOR_NOTICE}`);
     if (off.length > 0) {
         lines.push(`- 꺼짐: ${off.map(n => `\`${n}\` (${TOOLSET_DESCRIPTIONS[n]})`).join(' · ')}`);
         lines.push(opts.mode === 'stdio'
-            ? '- 필요한 도구가 목록에 없으면 기억으로 대신하지 말고 `list_toolsets` 를 불러 사용자에게 켜는 방법(env `BOOTPAY_TOOLSETS`)을 안내하세요. 설정 파일은 사용자가 고칩니다.'
+            ? '- 필요한 도구가 목록에 없으면 기억으로 대신하지 말고 `list_toolsets` 를 불러 사용자에게 맞는 문(args 의 `payment`·`commerce`·`mall`·`alimtalk`)이나 env `BOOTPAY_TOOLSETS` 를 안내하세요. 설정 파일은 사용자가 고칩니다.'
             : '- 원격 연결에서는 로그인·결제 설정·알림톡 도구가 없습니다. 필요하면 로컬 stdio(`npx -y @bootpay/mcp@latest`) 설정을 안내하세요.');
     }
     return lines.join('\n');
@@ -291,7 +295,9 @@ function routing(opts: InstructionsOptions): string {
         '- "○○이 뭐야?" / "문서 보여줘" → `search_docs("한국어 키워드")` → `get_doc(path)`',
         on('payment') && opts.mode === 'stdio'
             ? '- "결제 연동해줘" / "결제 코드 작성해줘" → `detect_project_stack` → `generate_payment_code` (아래 결제 절)'
-            : '- "결제 연동해줘" → 아래 "결제 관리자 도구가 없습니다" 절',
+            : on('docs')
+                ? '- "결제 연동해줘" → 아래 "결제 관리자 도구가 없습니다" 절'
+                : '- "결제 연동해줘" → 이 문에는 결제 도구가 없습니다. `list_toolsets` 로 결제 문(`payment`)을 안내하세요',
         on('alimtalk') && opts.mode === 'stdio' ? '- "알림톡 보내줘" / "알림톡 템플릿" → `alimtalk_status` 부터 (아래 알림톡 절)' : '',
         on('commerce') ? '- "쇼핑몰 만들어줘" / Commerce API → `generate_commerce_code` (아래 커머스 절)' : '',
         on('product') ? '- "상품 등록해줘" → `list_products`·`create_product` (아래 상품 절)' : '',
@@ -304,16 +310,18 @@ function routing(opts: InstructionsOptions): string {
 export function buildInstructions(opts: InstructionsOptions): string {
     const on = (n: ToolsetName) => opts.toolsets.includes(n);
     const stdio = opts.mode === 'stdio';
+    // 결제 연동 절 · SDK 규칙 · 결제 초보자 안내는 결제용 문서 도구(docs)가 켜진 세션에만 — 알림톡 · 쇼핑몰 운영 문에는 없는 도구 이야기다
+    const devDocs = !opts.door || on('docs');
     return [
         INTRO,
         toolsetSection(opts),
         routing(opts),
-        on('payment') && stdio ? PAYMENT_STDIO : paymentDocsOnly(opts.mode),
-        ABSOLUTE_RULES,
+        on('payment') && stdio ? PAYMENT_STDIO : devDocs ? paymentDocsOnly(opts.mode) : '',
+        devDocs ? ABSOLUTE_RULES : '',
         on('product') || on('commerce') ? PRODUCT : '',
         on('commerce') ? COMMERCE : '',
         on('alimtalk') && stdio ? ALIMTALK : '',
         on('page') && stdio ? PAGE : '',
-        BEGINNER,
+        devDocs ? BEGINNER : '',
     ].filter(Boolean).join('\n\n---\n\n');
 }

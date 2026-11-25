@@ -178,8 +178,34 @@ AI 코딩 도구(**Claude**, **Cursor**, **Windsurf**, **Cline**, **GitHub Copil
 
 **Docs** (문서 검색·SDK 버전·트러블슈팅) + **Admin** (관리자 설정·PG·위젯·코드 생성) + **알림톡** (카카오 채널·템플릿 검수·발송·수신거부·웹훅) + **Commerce** (스토어·상품·회원) — 하나의 MCP 서버로 제공합니다.
 
-stdio 로 붙으면 기본 **81개**(문서·결제·알림톡 묶음)가 노출되고, `BOOTPAY_TOOLSETS=all` 이면 **131개**, Commerce 를 켜면(`BOOTPAY_COMMERCE_ENABLED=true`) **130개**입니다.
+stdio 로 붙으면 기본 **80개**(문서·결제·알림톡 묶음)가 노출되고, `BOOTPAY_TOOLSETS=all` 이면 **130개**, Commerce 를 켜면(`BOOTPAY_COMMERCE_ENABLED=true`) **129개**입니다.
 HTTP 로 붙으면 Docs 9개만 노출됩니다.
+
+### 문(door) — 하는 일에 맞는 도구만 띄우기
+
+npm 패키지는 하나(`@bootpay/mcp`)이고, 실행 인자로 문을 고릅니다. 문마다 그 일에 필요한 도구만 실려서 AI 가 도구를 덜 헷갈립니다.
+
+| 문 | 누가 | 실행 args | 도구 |
+|------|------|------|:---:|
+| `payment` | PG 결제를 붙이는 개발자 | `["-y", "@bootpay/mcp@latest", "payment"]` | 41 |
+| `commerce` | 커머스 API 로 쇼핑몰을 직접 만드는 개발자 | `["-y", "@bootpay/mcp@latest", "commerce"]` | 36 |
+| `mall` | 부트페이 쇼핑몰을 운영하는 판매자 (상품 · 몰 설정 · 자유 페이지) | `["-y", "@bootpay/mcp@latest", "mall"]` | 60 |
+| `alimtalk` | 카카오 알림톡을 보내는 개발자 · 운영자 | `["-y", "@bootpay/mcp@latest", "alimtalk"]` | 54 |
+| `all` | 모든 도구 | `["-y", "@bootpay/mcp@latest", "all"]` | 130 |
+
+```json
+{
+  "mcpServers": {
+    "bootpay-alimtalk": { "command": "npx", "args": ["-y", "@bootpay/mcp@latest", "alimtalk"] }
+  }
+}
+```
+
+- 모르는 이름을 붙이면 기동은 막지 않고, 로그에 경고를 남긴 뒤 기본 실행합니다
+- 문을 붙이지 않으면 지금처럼 문서 · 결제 · 알림톡이 켜집니다. **다음 버전부터 기본 실행에서 알림톡이 빠집니다** — 알림톡을 쓰면 `alimtalk` 을 붙이세요
+- 문서 검색 · 읽기(`search_docs` · `get_doc` · `list_docs` · `get_cs_guide`)와 `list_toolsets` 는 어느 문에나 있습니다. 스택 판정 · CSP · SDK 버전 · 문제 해결 · 체크리스트는 `payment` · `commerce` 문에만 있습니다
+- 문에 묶음을 더하려면 env `BOOTPAY_TOOLSETS` 를 같이 씁니다 (예: `alimtalk` 문 + `BOOTPAY_TOOLSETS=payment`)
+- 구매자 대신 장바구니 · 주문하는 도구(`commerce_*`)는 원격 `https://mcp.bootpay.ai/commerce/mcp` 가 맡습니다
 
 ### 도구 묶음 — `BOOTPAY_TOOLSETS`
 
@@ -192,7 +218,8 @@ MCP 는 붙는 순간 도구 설명·스키마를 통째로 모델에 싣습니�
 | `payment` | O | 로그인·프로젝트·키체인·결제수단·위젯·`generate_payment_code` |
 | `alimtalk` | O | 카카오 알림톡 채널·템플릿·발송·수신거부·웹훅 |
 | `product` | — | 상품·카테고리·상세 블록·배송/구독 정책·이미지·디지털 코드 |
-| `commerce` | — | 커머스 키·몰 설정·`generate_commerce_code` (+ `BOOTPAY_COMMERCE_ENABLED` 면 `commerce_*`) |
+| `commerce` | — | 커머스 키·몰 설정·결제 복귀 주소·테스트 상품·`generate_commerce_code` (+ `BOOTPAY_COMMERCE_ENABLED` 면 `commerce_*`) |
+| `mall` | — | 쇼핑몰 운영 설정 — 몰 기본 정보·회원가입·주문/배송·약관 |
 | `page` | — | 쇼핑몰 자유 페이지 초안·코드 블록(HTML·CSS) 쓰기 · 헤더 메뉴/푸터에 걸기 — 게시는 판매자가 관리자 화면에서 ([안내](./docs/mall-page.md)) |
 
 ```toml
@@ -201,7 +228,7 @@ BOOTPAY_TOOLSETS = "payment,alimtalk,product"   # 쉼표 구분. "all" 은 전�
 ```
 
 - 모르는 이름을 넣으면 서버가 기동하지 않고 가능한 값을 알려 줍니다
-- `BOOTPAY_COMMERCE_ENABLED=true` 는 `commerce` 와 `product` 를 켠 것으로 봅니다 — 쇼핑몰을 만들면 상품 등록 도구가 곧 필요합니다
+- `BOOTPAY_COMMERCE_ENABLED=true` 는 `commerce` · `product` · `mall` 을 켠 것으로 봅니다 — 쇼핑몰을 만들면 상품 등록 도구가 곧 필요합니다
 - 도구가 안 보인다고 AI 가 말하면 `list_toolsets` 가 켜는 방법을 알려 줍니다
 - 결제 연동 상세 규칙(open_type·서버승인·웹훅·정기결제·본인인증)은 서버 instructions 대신 `get_doc('mcp/payment-rules')` 로 필요할 때 읽습니다
 
@@ -536,7 +563,7 @@ AI 내부 동작:
 |---------|-------|-------------|
 | **시작** | `alimtalk_status`, `set_commerce_credentials` | 키·채널·승인 템플릿·웹훅 준비 상태와 다음 할 일 / 커머스 연동키 설정·검증 (알림톡·Commerce 공용) |
 | **채널(발신프로필)** | `alimtalk_list_categories`, `alimtalk_request_sender_otp`, `alimtalk_register_sender`, `alimtalk_list_senders`, `alimtalk_get_sender`, `alimtalk_release_sender`, `alimtalk_update_variable_examples` | 카카오 채널 OTP 인증·등록·해지, 미리보기용 변수 예문 |
-| **공식 템플릿** | `alimtalk_search_official_templates`, `alimtalk_get_official_template`, `alimtalk_recommend_official_templates`, `alimtalk_find_templates` | 부트페이가 승인받아 둔 카탈로그 검색·상세·문장 기반 추천. 그룹키 채널이면 검수 없이 바로 발송. `alimtalk_find_templates` 는 패키지에 든 공용 카탈로그 사본을 훑는다(연동키 불필요) |
+| **공식 템플릿** | `alimtalk_search_official_templates`, `alimtalk_get_official_template`, `alimtalk_find_templates` | 부트페이가 승인받아 둔 카탈로그 검색(문장을 넣으면 비슷한 순 추천)·상세. 그룹키 채널이면 검수 없이 바로 발송. `alimtalk_find_templates` 는 패키지에 든 공용 카탈로그 사본을 훑는다(연동키 불필요) |
 | **자체 템플릿** | `alimtalk_list_templates`, `alimtalk_get_template`, `alimtalk_create_template`, `alimtalk_update_template`, `alimtalk_delete_template`, `alimtalk_register_template`, `alimtalk_request_inspection`, `alimtalk_upload_template_image` | 초안 생성(기본) → 대행사 등록 → 카카오 검수. 수정은 현재 값과 합쳐 보내 빠진 필드가 지워지지 않음 |
 | **발송·결과** | `alimtalk_send`, `alimtalk_send_test`, `alimtalk_send_bulk`, `alimtalk_cancel_reserved`, `alimtalk_list_messages`, `alimtalk_get_message`, `alimtalk_get_stats` | 발송(기본 꺼짐 · 미리보기 → 확인), 연동 확인용 테스트 1건, 예약 취소, 발송내역·집계 |
 | **수신거부** | `alimtalk_list_optouts`, `alimtalk_check_optouts`, `alimtalk_add_optout`, `alimtalk_remove_optout` | 목록·사전 확인(1,000건)·등록·해제 |

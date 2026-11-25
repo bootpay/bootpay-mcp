@@ -17,7 +17,7 @@ import { TOOL_READ_LOCAL } from './lib/tool-annotations.js';
  * @date: 2026-09-23
  */
 
-export const TOOLSET_NAMES = ['docs', 'payment', 'alimtalk', 'product', 'commerce', 'page'] as const;
+export const TOOLSET_NAMES = ['docs', 'payment', 'alimtalk', 'product', 'commerce', 'mall', 'page'] as const;
 export type ToolsetName = typeof TOOLSET_NAMES[number];
 
 /** 아무것도 지정하지 않았을 때 켜지는 묶음. README 의 「알림톡 도구는 기본 노출」 약속을 지킨다 */
@@ -28,22 +28,31 @@ export const TOOLSET_DESCRIPTIONS: Readonly<Record<ToolsetName, string>> = {
     payment:  'PG 결제 연동 — 로그인·프로젝트·키체인·결제수단·위젯·generate_payment_code',
     alimtalk: '카카오 알림톡 — 채널·템플릿·발송·수신거부·웹훅 (alimtalk_*)',
     product:  '상품 관리 — 상품·카테고리·상세 블록·배송/구독 정책·이미지·디지털 코드',
-    commerce: '커머스 쇼핑몰 — 커머스 키·몰 설정·generate_commerce_code (+ BOOTPAY_COMMERCE_ENABLED 면 commerce_*)',
+    commerce: '커머스 API(쇼핑몰을 직접 만드는 개발자) — 커머스 키·몰 설정·결제 복귀 주소·generate_commerce_code (+ BOOTPAY_COMMERCE_ENABLED 면 commerce_*)',
+    mall:     '쇼핑몰 운영 설정 — 몰 기본 정보·회원가입·주문/배송·약관 (get_mall_setting · update_mall_setting)',
     page:     '쇼핑몰 페이지 — 자유 페이지 초안·코드 블록(HTML) 쓰기 · 헤더 메뉴/푸터에 걸기',
 };
 
-/** 문서 도구 — 로그인 없이 동작한다. docs 는 끌 수 없다 */
-const DOCS_TOOLS = [
+/**
+ * 어느 문으로 띄워도 항상 켜지는 문서 도구 — 문서 검색 · 읽기와 「다른 도구는 어떻게 켜나」 안내.
+ * 알림톡 · 쇼핑몰 운영 문에는 결제 연동용 문서 도구(CSP · 스택 판정 등)가 필요 없어서 이것만 붙는다.
+ */
+export const CORE_DOCS_TOOLS = [
     'list_toolsets',
-    'detect_project_stack',
-    'get_sdk_versions',
     'search_docs',
     'get_doc',
     'list_docs',
+    'get_cs_guide',
+] as const;
+
+/** 문서 도구 — 로그인 없이 동작한다. 문 없이(BOOTPAY_TOOLSETS 만으로) 띄우면 docs 는 끌 수 없다 */
+const DOCS_TOOLS = [
+    ...CORE_DOCS_TOOLS,
+    'detect_project_stack',
+    'get_sdk_versions',
     'get_setup_checklist',
     'get_troubleshooting',
     'get_csp_allowlist',
-    'get_cs_guide',
 ] as const;
 
 /** 관리자 로그인·프로젝트 — 관리자 API 를 부르는 묶음이면 어디서든 필요하다 */
@@ -58,6 +67,10 @@ const ACCOUNT_TOOLS = [
     'browser_select_project',
     'create_project',
     'create_seller',
+] as const;
+
+/** 판매자 조회 · 수정과 키 권한 목록 — 결제 · 커머스 키를 발급하는 묶음에서만 쓴다 */
+const SELLER_ADMIN_TOOLS = [
     'search_sellers',
     'get_seller',
     'update_seller',
@@ -92,9 +105,16 @@ const COMMERCE_KEY_TOOLS = [
     'create_commerce_keys',
 ] as const;
 
-const COMMERCE_TOOLS = [
+/** 몰 설정 — 쇼핑몰 운영 문과 커머스 API 문 둘 다 쓴다(회원가입 항목 · 약관은 커머스 API 로 만든 몰에도 걸린다) */
+const MALL_SETTING_TOOLS = [
     'get_mall_setting',
     'update_mall_setting',
+] as const;
+
+const COMMERCE_TOOLS = [
+    ...MALL_SETTING_TOOLS,
+    // 개발 중 주문서를 띄워 볼 상품이 있어야 해서 상품 묶음과 함께 쓴다
+    'create_test_products',
     'list_checkout_return_domains',
     'register_checkout_return_domain',
     'unregister_checkout_return_domain',
@@ -130,12 +150,43 @@ const PRODUCT_TOOLS = REMOTE_TOOL_NAMES.filter(name => name !== 'get_auth_status
 
 const EXPLICIT: ReadonlyArray<readonly [ToolsetName, readonly string[]]> = [
     ['docs', DOCS_TOOLS],
-    ['payment', [...ACCOUNT_TOOLS, ...PAYMENT_TOOLS]],
+    ['payment', [...ACCOUNT_TOOLS, ...SELLER_ADMIN_TOOLS, ...PAYMENT_TOOLS]],
     ['alimtalk', [...ACCOUNT_TOOLS, ...COMMERCE_KEY_TOOLS]],
     ['product', [...ACCOUNT_TOOLS, ...PRODUCT_TOOLS]],
-    ['commerce', [...ACCOUNT_TOOLS, ...COMMERCE_KEY_TOOLS, ...COMMERCE_TOOLS]],
+    ['commerce', [...ACCOUNT_TOOLS, ...SELLER_ADMIN_TOOLS, ...COMMERCE_KEY_TOOLS, ...COMMERCE_TOOLS]],
+    ['mall', [...ACCOUNT_TOOLS, ...MALL_SETTING_TOOLS]],
     ['page', [...ACCOUNT_TOOLS, ...PAGE_TOOLS]],
 ];
+
+/**
+ * 문(door) — 「누가 쓰나」 기준으로 묶음을 고른 실행 단위. `npx @bootpay/mcp <문>` 으로 고른다.
+ * npm 패키지는 하나이고 문만 갈린다. 도구가 한 세션에 80개 넘게 실리면 모델이 비슷한 도구를 헷갈려서 나눴다.
+ * 구매자 대신 장바구니 · 주문하는 도구(commerce_*)는 원격 /commerce/mcp 가 따로 맡는다.
+ */
+export const DOORS = {
+    payment:  { toolsets: ['docs', 'payment'], name: 'Bootpay Payments', who: 'PG 결제를 붙이는 개발자' },
+    commerce: { toolsets: ['docs', 'commerce'], name: 'Bootpay Commerce API', who: '커머스 API 로 쇼핑몰을 직접 만드는 개발자' },
+    mall:     { toolsets: ['product', 'mall', 'page'], name: 'Bootpay Mall', who: '부트페이 쇼핑몰을 운영하는 판매자 (상품 · 몰 설정 · 자유 페이지)' },
+    alimtalk: { toolsets: ['alimtalk'], name: 'Bootpay AlimTalk', who: '카카오 알림톡을 보내는 개발자 · 운영자' },
+    all:      { toolsets: [...TOOLSET_NAMES], name: 'Bootpay MCP', who: '모든 도구' },
+} as const satisfies Record<string, { toolsets: readonly ToolsetName[]; name: string; who: string }>;
+export type DoorName = keyof typeof DOORS;
+export const DOOR_NAMES = Object.keys(DOORS) as DoorName[];
+
+/**
+ * 실행 인자에서 문 이름을 읽는다. 플래그(-로 시작)는 건너뛴다.
+ * 모르는 이름은 던지지 않고 warning 과 함께 기본 실행으로 돌린다 — 문을 도입하기 전 버전은 인자를 아예 보지 않아서,
+ * 설정에 다른 인자를 넣어 둔 기존 사용자가 업데이트하는 순간 MCP 가 꺼지면 안 된다.
+ */
+export function parseDoor(argv: readonly string[]): { door?: DoorName; warning?: string } {
+    const word = argv.find(a => !a.startsWith('-'));
+    if (word === undefined) return {};
+    const name = word.trim().toLowerCase();
+    if (!(DOOR_NAMES as string[]).includes(name)) {
+        return { warning: `알 수 없는 실행 인자 "${word}" 는 무시하고 기본 실행합니다. 문을 고르려면: ${DOOR_NAMES.join(', ')}` };
+    }
+    return { door: name as DoorName };
+}
 
 /**
  * 도구가 속한 묶음. 둘 이상에 속하면 그중 하나만 켜져도 등록된다.
@@ -157,12 +208,13 @@ export function toolsetsOf(name: string): ToolsetName[] | null {
  * - `BOOTPAY_COMMERCE_ENABLED=true` 는 commerce 와 product 를 켠 것으로 본다 — 그 env 를 쓰던 사용자는 묶음 도입 전
  *   (전 도구 + commerce_*) 표면을 그대로 받는다. 쇼핑몰을 만들면 상품 등록 도구가 곧 필요해서 product 를 함께 켠다
  */
-export function resolveToolsets(env: Record<string, string | undefined> = process.env): ToolsetName[] {
+export function resolveToolsets(env: Record<string, string | undefined> = process.env, door?: DoorName): ToolsetName[] {
     const listed = (env.BOOTPAY_TOOLSETS ?? '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-    // 이름이 하나도 없으면(빈 값·"," 같은 오타) 기본값 — docs 만 남는 조용한 축소를 막는다
-    const requested = listed.length > 0 ? listed : [...DEFAULT_TOOLSETS];
+    // 문을 골랐으면 그 문의 묶음에 BOOTPAY_TOOLSETS 를 더한다(docs 를 강제하지 않는다).
+    // 문이 없으면 예전대로 — 이름이 하나도 없으면(빈 값·"," 같은 오타) 기본값, docs 는 항상
+    const requested = door ? [...DOORS[door].toolsets, ...listed] : listed.length > 0 ? listed : [...DEFAULT_TOOLSETS];
 
-    const enabled = new Set<ToolsetName>(['docs']);
+    const enabled = new Set<ToolsetName>(door ? [] : ['docs']);
     for (const name of requested) {
         if (name === 'all') {
             TOOLSET_NAMES.forEach(n => enabled.add(n));
@@ -178,6 +230,7 @@ export function resolveToolsets(env: Record<string, string | undefined> = proces
     if (env.BOOTPAY_COMMERCE_ENABLED === 'true') {
         enabled.add('commerce');
         enabled.add('product');
+        enabled.add('mall');
     }
 
     return TOOLSET_NAMES.filter(n => enabled.has(n));
@@ -192,6 +245,8 @@ export function applyToolsets(server: McpServer, enabled: readonly ToolsetName[]
 
     const register = (server.tool as (...args: unknown[]) => unknown).bind(server);
     const tool = (...args: unknown[]): unknown => {
+        // 문서 검색 · 읽기 · 묶음 안내는 어느 문에서든 켠다
+        if ((CORE_DOCS_TOOLS as readonly string[]).includes(String(args[0]))) return register(...args);
         const sets = toolsetsOf(String(args[0]));
         if (sets && !sets.some(s => enabled.includes(s))) return undefined;
         return register(...args);
@@ -210,10 +265,10 @@ export function applyToolsets(server: McpServer, enabled: readonly ToolsetName[]
  * 꺼진 묶음이 무엇이고 어떻게 켜는지 모델이 사용자에게 말할 수 있게 한다.
  * 도구가 안 보인다고 모델이 기억으로 대신 답하는 것을 막는 자리다.
  */
-export function registerListToolsetsTool(server: McpServer, enabled: readonly ToolsetName[]): void {
+export function registerListToolsetsTool(server: McpServer, enabled: readonly ToolsetName[], door?: DoorName): void {
     server.tool(
         'list_toolsets',
-        '이 세션에 켜진·꺼진 부트페이 도구 묶음과 켜는 방법을 알려 줍니다. 필요한 도구(상품·커머스·알림톡 등)가 목록에 없으면 이 도구를 부르고, 사용자에게 설정 변경을 안내하세요.',
+        '이 세션에 켜진·꺼진 부트페이 도구 묶음과, 다른 문(결제 · 커머스 API · 쇼핑몰 운영 · 알림톡)을 여는 방법을 알려 줍니다. 필요한 도구(상품·커머스·알림톡 등)가 목록에 없으면 이 도구를 부르고, 사용자에게 설정 변경을 안내하세요.',
         {},
         TOOL_READ_LOCAL,
         async () => {
@@ -223,14 +278,26 @@ export function registerListToolsetsTool(server: McpServer, enabled: readonly To
                 content: [{
                     type: 'text' as const,
                     text: JSON.stringify({
+                        door: door ?? null,
                         enabled: enabled.map(name => ({ name, description: TOOLSET_DESCRIPTIONS[name] })),
                         disabled: disabled.map(name => ({ name, description: TOOLSET_DESCRIPTIONS[name] })),
+                        doors: DOOR_NAMES.filter(d => d !== 'all').map(d => ({
+                            door: d,
+                            for: DOORS[d].who,
+                            args: ['-y', '@bootpay/mcp@latest', d],
+                        })),
                         how_to_enable: disabled.length === 0
                             ? '모든 묶음이 켜져 있습니다.'
-                            : `MCP 설정의 env 에 BOOTPAY_TOOLSETS="${all}" (또는 "all") 을 넣고 AI 클라이언트를 완전히 종료한 뒤 다시 켜세요. 설정 파일은 사용자가 직접 고칩니다.`,
+                            : `필요한 일에 맞는 문을 MCP 설정 args 에 붙이세요(예: ["-y", "@bootpay/mcp@latest", "alimtalk"]). 묶음을 직접 고르려면 env 에 BOOTPAY_TOOLSETS="${all}" (또는 "all"). 바꾼 뒤 AI 클라이언트를 완전히 종료하고 다시 켜세요. 설정 파일은 사용자가 직접 고칩니다.`,
+                        ...(door === undefined && enabled.includes('alimtalk')
+                            ? { notice: DEFAULT_DOOR_NOTICE }
+                            : {}),
                     }, null, 2),
                 }],
             };
         },
     );
 }
+
+/** 문 없이 띄운 기본 세션에 붙는 안내 — 다음 버전에서 기본값이 결제(docs + payment)로 줄어든다 */
+export const DEFAULT_DOOR_NOTICE = '다음 버전부터 기본 실행(npx @bootpay/mcp)에서 알림톡 도구가 빠집니다. 알림톡은 args 에 "alimtalk" 을 붙여 따로 띄우세요 — 예: ["-y", "@bootpay/mcp@latest", "alimtalk"].';

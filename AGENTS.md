@@ -218,7 +218,7 @@ stdio 는 기본으로 `docs,payment,alimtalk` 묶음만 켭니다. 상품(`prod
 
 1. `alimtalk_status` 부터 — 커머스 연동키 · 카카오 채널 · 승인된 템플릿 · 웹훅 상태와 다음 할 일을 줍니다
 2. 키는 결제용이 아니라 **커머스 연동키**입니다 (env `BOOTPAY_COMMERCE_CLIENT_KEY` · `BOOTPAY_COMMERCE_SECRET_KEY` 또는 `set_commerce_credentials`)
-3. 템플릿은 `alimtalk_recommend_official_templates` 로 공식 템플릿부터 찾고, 없으면 `alimtalk_create_template`(초안) → 등록 → 카카오 검수
+3. 템플릿은 `alimtalk_search_official_templates(text)` 로 공식 템플릿부터 찾고, 없으면 `alimtalk_create_template`(초안) → 등록 → 카카오 검수
 4. 🔴 실제 발송은 기본 꺼짐입니다 — 사용자가 env `BOOTPAY_ALIMTALK_SEND_ENABLED=true` 로 켭니다(AI 가 대신 켜지 마세요). 켜져 있어도 두 단계 — `alimtalk_send` 를 `confirm_token` 없이 불러 미리보기를 사용자에게 보여 주고, 동의를 받은 뒤에만 같은 인자 + `confirm_token` 으로 다시 부릅니다. 샌드박스가 없어 곧바로 실제 발송 · 과금입니다
 5. 문자(LMS) 대체발송은 안내하지 마세요 — 부트페이는 제공하지 않습니다
 
