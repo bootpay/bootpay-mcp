@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JSON files parse
+        run: |
+          for f in server.json glama.json; do jq empty "$f" && echo "ok $f"; done
+      - name: server.json matches the MCP Registry schema
+        run: |
+          curl -fsSL "$(jq -r '."$schema"' server.json)" -o /tmp/server.schema.json
+          npx -y -p ajv-cli@5 -p ajv-formats@3 ajv validate --strict=false -c ajv-formats -s /tmp/server.schema.json -d server.json
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm package starts and lists tools
+        run: node .github/scripts/smoke.mjs
+      - name: hosted endpoint answers initialize
+        run: |
+          curl -fsS -X POST https://mcp.bootpay.ai/mcp \
+            -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            | grep -q '"serverInfo"'
