@@ -248,7 +248,7 @@ const ALIMTALK = `
 - 채널 해지(\`alimtalk_release_sender\`) 전에 미리보기의 reserved_pending 을 보여 주고 \`alimtalk_cancel_reserved\` 로 정리하세요
 - 알림톡 웹훅 URL 을 주문 · 구독 웹훅 URL 과 같게 두지 마세요
 
-**5. 가맹점 서버에 발송 코드를 붙일 때** — \`POST https://message.bootapi.com/alimtalk/send\`(대량 \`/send/bulk\`. 경로에 \`/v1\` 이 없고, 옛 주소 \`api.bootapi.com/v1/alimtalk\` 는 410 입니다), 커머스 연동키 Basic Auth. \`required_variables\` 를 모두 채우고 주문번호 같은 고유값을 \`ref_id\` 로 넣어 재시도 중복 발송을 막으세요. \`reserved_at\` 은 시간대 오프셋을 붙인 ISO8601 로 보내세요 (해석 못 하는 값은 즉시 발송됩니다). 결과는 알림톡 웹훅(301 성공 · 302 실패)으로 받고 \`X-Bootpay-Signature\` HMAC 을 검증하세요.
+**5. 가맹점 서버에 발송 코드를 붙일 때** — \`POST https://message.bootapi.com/alimtalk/send\`(대량 \`/send/bulk\` — 요청당 수신자 1,000명까지. 경로에 \`/v1\` 이 없고, 옛 주소 \`api.bootapi.com/v1/alimtalk\` 는 410 입니다), 커머스 연동키 Basic Auth. \`required_variables\` 를 모두 채우고 주문번호 같은 고유값을 \`ref_id\` 로 넣어 재시도 중복 발송을 막으세요. \`reserved_at\` 은 시간대 오프셋을 붙인 ISO8601 로 보내세요 (해석 못 하는 값은 즉시 발송됩니다). 결과는 알림톡 웹훅(301 성공 · 302 실패)으로 받고 \`X-Bootpay-Signature\` HMAC 을 검증하세요.
 
 **6. 🔴 시각이 정해진 대량 발송(수업 N분 전 · 수업 시작 안내 · 예약 리마인더)** — 기본 발송 한도가 없어 수백 명도 \`/send/bulk\` 한 번이면 됩니다. 발송 직전 크론에 기대지 말고 수강 신청 · 일정 확정 때 \`reserved_at\`(수업 시작 − N분)으로 미리 예약하고, ref_id 를 수업 · 수강생 · 알림 종류 조합으로 두고, receipt_id 를 저장해 일정이 바뀌거나 취소되면 예약을 취소하고 다시 예약하게 하세요. 세부는 \`alimtalk_send_bulk\` 설명에 있습니다.
 `.trim();
