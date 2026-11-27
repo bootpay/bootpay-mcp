@@ -39,7 +39,7 @@ export function registerSetupChecklistTool(server: McpServer, provider: DocsProv
 **Admin CLI (stdio 모드) — AI가 자동 처리:**
 \`\`\`
 browser_login              → 로그인
-create_seller              → 셀러 생성 + 기본 프로젝트 자동 생성
+create_seller              → 국세청 사업자 확인 후 셀러 생성 + 기본 프로젝트 자동 생성
 browser_select_project     → 프로젝트 선택
 activate_payment_method    → PG 결제수단 활성화
 set_sandbox_mode           → 테스트 모드 설정

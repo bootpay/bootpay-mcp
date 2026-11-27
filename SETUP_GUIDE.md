@@ -28,7 +28,7 @@ MCP를 stdio 모드(`npx -y @bootpay/mcp@latest`)로 연결하면 AI가 프로�
 
 ```
 ① browser_login              → 브라우저 팝업으로 Bootpay 로그인
-② create_seller              → 셀러(가맹점) 생성 + 기본 프로젝트 자동 생성
+② create_seller              → 국세청 사업자 확인 후 셀러(가맹점) 생성 + 기본 프로젝트 자동 생성
 ③ browser_select_project     → 프로젝트 선택
 ④ activate_payment_method    → PG 결제수단 활성화
 ⑤ set_sandbox_mode           → 테스트 모드 설정

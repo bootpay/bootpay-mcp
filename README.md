@@ -178,7 +178,7 @@ AI 코딩 도구(**Claude**, **Cursor**, **Windsurf**, **Cline**, **GitHub Copil
 
 **Docs** (문서 검색·SDK 버전·트러블슈팅) + **Admin** (관리자 설정·PG·위젯·코드 생성) + **알림톡** (카카오 채널·템플릿 검수·발송·수신거부·웹훅) + **Commerce** (스토어·상품·회원) — 하나의 MCP 서버로 제공합니다.
 
-stdio 로 붙으면 기본 **41개**(문서·결제 묶음, `payment` 문과 같음)가 노출되고, `BOOTPAY_TOOLSETS=all` 이면 **130개**, Commerce 를 켜면(`BOOTPAY_COMMERCE_ENABLED=true`) **129개**입니다.
+stdio 로 붙으면 기본 **42개**(문서·결제 묶음, `payment` 문과 같음)가 노출되고, `BOOTPAY_TOOLSETS=all` 이면 **131개**, Commerce 를 켜면(`BOOTPAY_COMMERCE_ENABLED=true`) **95개**입니다.
 HTTP 로 붙으면 Docs 9개만 노출됩니다.
 
 ### 문(door) — 하는 일에 맞는 도구만 띄우기
@@ -497,7 +497,7 @@ Bootpay가 처음이라면 관리자 화면 대신 AI에게 전부 맡기세요.
 
 AI 내부 동작:
   1. browser_login              → 브라우저 팝업으로 로그인
-  2. create_seller              → 셀러(가맹점) 생성 + 기본 프로젝트 자동 생성
+  2. create_seller              → 국세청 사업자 확인 후 셀러(가맹점) 생성 + 기본 프로젝트 자동 생성
   3. browser_select_project     → 프로젝트 선택
   4. activate_payment_method    → 나이스페이 카드결제 활성화
   5. set_sandbox_mode           → 테스트 모드 설정
@@ -519,7 +519,7 @@ AI 내부 동작:
 | **코드생성** | `generate_payment_code`, `generate_commerce_code` | 프리플라이트(인증·키체인·결제수단·SDK 확인) + 클라이언트/서버 코드 원스톱 생성. `payment_type`: `payment`(일반) / `billing`(빌링키) / `subscription`(구독 — 회차·배치·무료체험·해지) / `widget` / `auth`, `scheduler`: `cron` / `http_trigger`(서버리스) |
 | **컨텍스트** | `get_integration_context`, `get_commerce_context` | 인증·프로젝트·결제설정·위젯·키체인을 한 번에 조회 (`readiness.blockers` 반환) |
 | **인증** | `login`, `browser_login`, `logout`, `list_projects`, `switch_project`, `browser_select_project`, `set_token`, `get_auth_status` | 로그인, 프로젝트 전환, 토큰 설정·상태 확인 |
-| **셀러** | `create_seller`, `search_sellers`, `get_seller`, `update_seller` | 셀러(가맹점) CRUD |
+| **셀러** | `create_seller`, `read_business_certificate`, `search_sellers`, `get_seller`, `update_seller` | 셀러(가맹점) CRUD. 만들 때 국세청 사업자 확인(등록번호 · 대표자명 · 개업연월일)을 통과해야 하고, 사업자등록증 파일에서 값을 읽을 수 있습니다(stdio 전용) |
 | **상세설명 블록** | `list_content_templates`, `create_content_template`, `delete_content_template`, `list_content_blocks`, `create_content_block`, `update_content_block`, `delete_content_block`, `list_content_block_products` | 상세설명을 블록으로 구성. 시작 템플릿(서버 저장분 + MCP 내장 스타터)과 여러 상품이 공유하는 공용 블록 관리. `content_type=4`일 때만 블록이 저장되며, HTML(`content`)은 서버가 컴파일해 채웁니다 |
 | **디지털 코드풀** | `list_digital_codes`, `register_digital_codes`, `disable_digital_code` | 시리얼·라이센스 번호 일괄 등록/조회/폐기. `code_distribution_mode="pool"` 상품에서 구매자마다 다른 코드를 발급할 때 사용 (한 번에 최대 5,000개) |
 | **이미지** | `upload_product_images` | 로컬 경로·URL·base64 → Bootpay CDN 업로드 (최대 10장, 장당 10MB) |

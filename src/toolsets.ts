@@ -67,6 +67,8 @@ const ACCOUNT_TOOLS = [
     'browser_select_project',
     'create_project',
     'create_seller',
+    // 가맹점 만들기의 사업자등록증 읽기(선택) — create_seller 와 같이 다닌다
+    'read_business_certificate',
 ] as const;
 
 /** 판매자 조회 · 수정과 키 권한 목록 — 결제 · 커머스 키를 발급하는 묶음에서만 쓴다 */

@@ -132,7 +132,7 @@ BOOTPAY_SECRET_KEY=              # 서버 전용, 프론트엔드 노출 금지
 |------|----------|
 | 미로그인 | \`browser_login\` |
 | 프로젝트 미선택 | \`browser_select_project\` |
-| 프로젝트 없음 | \`create_seller\` → 자동 프로젝트 생성 |
+| 프로젝트 없음 | \`create_seller\`(국세청 사업자 확인 통과 필요) → 자동 프로젝트 생성 |
 | 결제용 키체인 없음 · Secret Key 분실 | \`create_keychain(targets=["core"])\` |
 | PG 미활성화 · 결제수단 inactive | \`activate_payment_method\` (+ \`set_sandbox_mode\`) |
 | 위젯 없음 (위젯 결제 시) | \`create_widget\` |
@@ -240,7 +240,7 @@ const ALIMTALK = `
 - 실제 발송은 **기본으로 꺼져 있습니다.** 사용자가 MCP 설정 env 에 \`BOOTPAY_ALIMTALK_SEND_ENABLED=true\` 를 넣고 재시작해야 켜집니다. **AI 가 설정 파일을 고쳐 대신 켜지 마세요** — 꺼져 있어도 미리보기는 됩니다
 - \`alimtalk_send\` / \`alimtalk_send_bulk\` 를 먼저 **confirm_token 없이** 불러 미리보기를 받고, message · recipients · warnings · must_tell_user 를 **사용자에게 그대로 보여 주고** "보내도 된다"는 답을 받은 뒤에만 같은 인자에 confirm_token 을 더해 다시 부릅니다
 - **사용자 동의 없이 confirm_token 을 넣지 마세요.** 샌드박스가 없어 곧바로 실제 카카오톡이 나가고 과금됩니다. 인자를 하나라도 바꾸면 토큰이 무효입니다
-- 1회 발송 인원 상한(\`BOOTPAY_ALIMTALK_MAX_RECIPIENTS\`, 기본 100명)과 채널(\`BOOTPAY_ALIMTALK_SENDER_KEY\`)은 env 로 고정되어 도구 인자로 바꿀 수 없습니다. 상한을 넘는 대량 발송은 가맹점 서버 코드로 보내도록 안내하세요. 서버 발송 한도는 새 프로젝트가 분 10 · 시 100 · 일 500 건이고 넘으면 요청 전체가 3022 로 거부되니 10명 이하로 나눠 보내게 하세요
+- 1회 발송 인원 상한(\`BOOTPAY_ALIMTALK_MAX_RECIPIENTS\`, 기본 100명)과 채널(\`BOOTPAY_ALIMTALK_SENDER_KEY\`)은 env 로 고정되어 도구 인자로 바꿀 수 없습니다. 상한을 넘는 대량 발송은 가맹점 서버 코드로 보내도록 안내하세요. 서버에는 기본 발송 한도가 없습니다(부트페이가 따로 한도를 건 프로젝트만 3022 로 요청 전체가 거부됩니다)
 
 **4. 하지 말 것**
 - **문자(LMS) 대체발송을 안내하거나 제안하지 마세요.** 부트페이는 제공하지 않습니다 — 알림톡이 실패하면 실패로 끝나고 과금되지 않습니다
@@ -250,7 +250,7 @@ const ALIMTALK = `
 
 **5. 가맹점 서버에 발송 코드를 붙일 때** — \`POST https://message.bootapi.com/alimtalk/send\`(대량 \`/send/bulk\`. 경로에 \`/v1\` 이 없고, 옛 주소 \`api.bootapi.com/v1/alimtalk\` 는 410 입니다), 커머스 연동키 Basic Auth. \`required_variables\` 를 모두 채우고 주문번호 같은 고유값을 \`ref_id\` 로 넣어 재시도 중복 발송을 막으세요. \`reserved_at\` 은 시간대 오프셋을 붙인 ISO8601 로 보내세요 (해석 못 하는 값은 즉시 발송됩니다). 결과는 알림톡 웹훅(301 성공 · 302 실패)으로 받고 \`X-Bootpay-Signature\` HMAC 을 검증하세요.
 
-**6. 🔴 시각이 정해진 대량 발송(수업 N분 전 · 예약 리마인더)** — 발송 직전 크론으로 \`/send/bulk\` 를 한 번에 쏘는 코드를 짜지 마세요. 한도는 **접수 순간**에 세고(예약도 마찬가지), 수신자 수가 남은 한도보다 많으면 요청 전체가 3022 라 새 프로젝트는 11명부터 한 건도 안 나갑니다. 수강 신청 · 일정 확정 때 \`reserved_at\`(수업 시작 − N분)으로 미리 예약하고, 분당 한도 안 묶음으로 나눠 접수하고, ref_id 를 수업 · 수강생 · 알림 종류 조합으로 두고, receipt_id 를 저장해 일정이 바뀌면 취소 후 재예약하게 하세요. 일 한도를 넘을 규모면 오픈 전에 부트페이에 한도 상향을 요청하라고 사용자에게 말하세요. 세부는 \`alimtalk_send_bulk\` 설명에 있습니다.
+**6. 🔴 시각이 정해진 대량 발송(수업 N분 전 · 수업 시작 안내 · 예약 리마인더)** — 기본 발송 한도가 없어 수백 명도 \`/send/bulk\` 한 번이면 됩니다. 발송 직전 크론에 기대지 말고 수강 신청 · 일정 확정 때 \`reserved_at\`(수업 시작 − N분)으로 미리 예약하고, ref_id 를 수업 · 수강생 · 알림 종류 조합으로 두고, receipt_id 를 저장해 일정이 바뀌거나 취소되면 예약을 취소하고 다시 예약하게 하세요. 세부는 \`alimtalk_send_bulk\` 설명에 있습니다.
 `.trim();
 
 /** 쇼핑몰 자유 페이지(page 묶음, G13-M1) — 켜졌을 때만 싣는다 @date: 2026-11-19 */

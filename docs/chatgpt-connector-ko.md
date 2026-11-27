@@ -40,6 +40,7 @@
 | `browser_login`, `browser_select_project` | `127.0.0.1` 콜백 서버가 사용자 PC가 아니라 서버에서 열려 성립하지 않는다 |
 | `switch_project` | 원격은 승인 시점에 프로젝트를 토큰에 고정한다. 대화 중간 전환은 엉뚱한 상점에 상품이 올라가는 사고로 이어진다 |
 | `list_projects`, `create_project`, `create_seller`, `update_seller` | 그랜트에 묶인 프로젝트 바깥을 드러내거나 만든다 |
+| `read_business_certificate` | 사용자 PC 의 파일 경로를 읽는다(가맹점 만들기용이라 `create_seller` 와 같이 다닌다) |
 | 결제설정·키체인·위젯 쓰기 | **인가 서버가 발급하는 스코프가 `project.product.read` / `project.product.write` 둘뿐이다** (`OauthClient::SUPPORTED_SCOPES`). 이 도구들을 정당화할 스코프가 아예 없으므로, 스코프가 생기기 전에는 제외한다 |
 
 도구를 새로 추가하면 **기본이 원격 미노출**입니다. `REMOTE_TOOL_NAMES`에 이름을 넣는 의식적인 행동이 있어야 원격에 나갑니다. 프로파일 테스트가 이를 강제합니다.
