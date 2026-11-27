@@ -3,7 +3,7 @@
   "name": "ai.bootpay/mcp",
   "title": "Bootpay",
   "description": "Korean payments & KakaoTalk AlimTalk: PG integration code, docs, billing, AlimTalk sending.",
-  "version": "2.20.0",
+  "version": "2.21.0",
   "websiteUrl": "https://developers.bootpay.ai",
   "repository": {
     "url": "https://github.com/bootpay/bootpay-mcp",
@@ -19,7 +19,7 @@
     {
       "registryType": "npm",
       "identifier": "@bootpay/mcp",
-      "version": "2.20.0",
+      "version": "2.21.0",
       "transport": {
         "type": "stdio"
       }
