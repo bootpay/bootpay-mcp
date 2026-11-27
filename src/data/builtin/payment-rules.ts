@@ -47,8 +47,11 @@ export const PAYMENT_RULES_DOC: { meta: DocMeta; content: string } = {
 
 | 기기 | \`extra.open_type\` | 근거 |
 |------|--------------------|------|
-| **PC (데스크톱 브라우저)** | \`iframe\`, **결제 금액 100만원 초과면 \`popup\`** | iframe 안에서는 크롬 LNA 로 100만원 초과 ISP·페이북 인증창이 막힘. PC redirect 도 iframe 으로 떠서 못 피함 |
+| **PC (데스크톱 브라우저)** | **SDK 5.5.2 이상은 \`iframe\`** | 로컬 네트워크 권한 위임으로 ISP 인증서 결제 허용 가능. 금액 조건 없음. SDK 를 바로 올릴 수 없으면 \`popup\`. PC redirect 는 페이지 이동 없이 iframe 으로 떠서 해결되지 않음 |
 | **모바일 (iOS·Android·인앱브라우저)** | **\`redirect\` 권장** | 조합에 따라 중첩 iframe 이 거부될 수 있음 |
+
+SDK 를 바로 올릴 수 없다면 \`open_type: isMobile ? 'redirect' : 'popup'\` 을 사용합니다.
+SDK 5.5.1 이하의 iframe 은 로컬 네트워크 권한이 denied 이며 보안 헤더로 해결되지 않습니다.
 
 - **웹 결제 코드를 생성할 때 기기 분기를 기본으로 넣으세요.** 실패하면 결제는 승인됐는데
   화면만 결과를 못 받는 상태가 되어 "결제했는데 주문이 없다" 는 CS 로 돌아옵니다.
@@ -60,7 +63,7 @@ export const PAYMENT_RULES_DOC: { meta: DocMeta; content: string } = {
 \`\`\`javascript
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 extra: {
-  open_type: isMobile ? 'redirect' : (price > 1000000 ? 'popup' : 'iframe'),   // price = 결제 금액
+  open_type: isMobile ? 'redirect' : 'iframe',   // SDK 5.5.2 이상
   redirect_url: window.location.origin + '/payment/result',   // redirect 경로에서 필수
   separately_confirmed: true,
 }

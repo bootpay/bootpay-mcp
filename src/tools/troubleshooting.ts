@@ -9,7 +9,7 @@ export function registerTroubleshootingTool(server: McpServer): void {
     {
       topic: z
         .enum(['onboarding', 'sandbox', 'webhook', 'billing', 'subscription', 'error', 'cancel', 'cors', 'csp', 'local-network', 'open-type', 'mobile', 'widget', 'unified', 'certification'])
-        .describe('문제 유형: onboarding(가입·PG 신청·가맹 심사·결제수단 활성화 — 「결제창이 안 뜬다」·「심사가 안 끝난다」의 대부분이 여기), sandbox(테스트 환경), webhook(웹훅 미수신), billing(빌링키 발급·자동결제), subscription(구독 운영 — 이중 결제·배치 미실행·해지 후 청구·무료체험·가격 변경), error(에러코드), cancel(취소·부분취소·환불 상태값), cors(허용 도메인 등록), csp(Content-Security-Policy 로 결제창 차단 — 「Refused to frame」·frame-src), local-network(크롬 로컬 네트워크 정책으로 ISP·페이북 인증창 차단 — 「100만원 넘으면 인증창이 안 뜬다」·loopback), open-type(iframe·popup·redirect 선택과 기기별 분기, 결과 이벤트 처리), mobile(앱), widget(결제위젯), unified(통합결제창), certification(본인인증)'),
+        .describe('문제 유형: onboarding(가입·PG 신청·가맹 심사·결제수단 활성화 — 「결제창이 안 뜬다」·「심사가 안 끝난다」의 대부분이 여기), sandbox(테스트 환경), webhook(웹훅 미수신), billing(빌링키 발급·자동결제), subscription(구독 운영 — 이중 결제·배치 미실행·해지 후 청구·무료체험·가격 변경), error(에러코드), cancel(취소·부분취소·환불 상태값), cors(허용 도메인 등록), csp(Content-Security-Policy 로 결제창 차단 — 「Refused to frame」·frame-src), local-network(크롬 로컬 네트워크 정책으로 ISP·페이북 인증창 차단 — 「ISP 인증서 결제에서 설치 안내가 반복된다」·loopback), open-type(iframe·popup·redirect 선택과 기기별 분기, 결과 이벤트 처리), mobile(앱), widget(결제위젯), unified(통합결제창), certification(본인인증)'),
     },
     TOOL_READ_LOCAL,
     async ({ topic }) => {
@@ -126,7 +126,7 @@ PG에서 받은 clientId/secretKey를 입력하지 않아도 결제창이 뜹니
   - 하나라도 빠지면 백오프 간격으로 재시도합니다 (아래 재시도 정책 참조)
 - [ ] **방화벽/보안**: Bootpay 발신 IP 대역 \`223.130.82.0/24\`가 차단되어 있지 않은지 확인
 - [ ] **IP 필터가 너무 좁지 않은지**: 특정 IP 1개만 허용했다면 \`223.130.82.0/24\` 전체 대역으로 허용하세요
-- [ ] **타임아웃**: 웹훅 수신 엔드포인트는 5초 이내에 응답해야 합니다
+- [ ] **타임아웃**: 부트페이는 응답을 **최대 60초** 기다립니다. 단 SSL 핸드셰이크에 실패하면 10초 만에 실패(\`failed to connect: Connection timed out - SSL_connect\`)로 기록되고 재시도로 넘어갑니다. 응답은 5초 이내로 먼저 돌려주고 업무 로직은 비동기로 처리하길 권장합니다
 
 ## 웹훅 보안 체크리스트
 
@@ -172,6 +172,10 @@ PG에서 받은 clientId/secretKey를 입력하지 않아도 결제창이 뜹니
 
 - **재시도 횟수**: 관리자 → 개발자 설정 → 웹훅 설정에서 지정하며, 기본값은 10회입니다.
 - **간격**: 재시도할수록 늘어나는 백오프 방식입니다. 정확한 간격은 관리자 웹훅 로그에서 확인하세요.
+  - 대략 처음 몇 번은 30초~1분 간격, 6회째부터 10분 이상으로 벌어지고 마지막 회차는 한 시간을 넘깁니다. ⛔ "최대 10분 간격"처럼 상한이 10분인 것으로 안내하지 마세요
+- **중복**: 짧은 시간 안에 같은 웹훅을 중복 발송하지는 않습니다. 결제 직후 취소하면 중복처럼 보이니 \`webhook_type\`으로 구분하세요
+- **발신 검증**: 서명 헤더는 없습니다. 발신 IP(\`223.130.82.0/24\`) + \`receipt_id\` 단건조회로 검증합니다. ⛔ "헤더의 프라이빗 키로 검증"이라고 안내하지 마세요
+- **수동 재전송**: 관리자 결제내역 → 자세히 보기 → Webhook 탭에서 회차별 로그를 보고, 오른쪽 위 재전송 버튼으로 다시 보낼 수 있습니다
 - 지정한 횟수를 모두 실패하면 재시도를 멈춥니다.
 
 > 자세한 내용: \`get_doc("webhook/setup")\``,
@@ -654,11 +658,11 @@ CSP 허용목록은 **iframe 경로의 필요조건이지 충분조건이 아닙
 모바일에서는 PG·결제수단·브라우저 조합에 따라 중첩 프레임 임베드 자체가 거부될 수 있고,
 그건 CSP 로 풀리지 않습니다. 이 경우 \`open_type: 'redirect'\` 로 전환하세요 → topic="open-type"`,
 
-        'local-network': `# 100만원이 넘으면 인증창이 안 뜬다 — 크롬 로컬 네트워크 정책
+        'local-network': `# ISP 인증서 결제에서 설치 안내가 반복된다 — 로컬 네트워크 정책
 
 ## 지문 — 이 세 개가 같이 나오면 확정이다
 
-1. **100만원 이하는 정상 결제된다.** 100만원을 넘을 때만 인증창이 뜨지 않는다
+1. **ISP(인증서 결제)를 고를 때만 막힌다.** 페이북 QR·비밀번호 결제는 된다
 2. KB국민 · BC · 카카오뱅크 카드(**ISP · 페이북**)에서 난다
 3. 콘솔에 **Permission was denied for this request to access the loopback address space** 가 찍힌다
 
@@ -666,26 +670,32 @@ CSP 허용목록은 **iframe 경로의 필요조건이지 충분조건이 아닙
 프로그램은 깔렸는데 결제창이 그걸 부르지 못해서다. "사내망이라 설치가 안 된다" 로 신고되기 쉽다 —
 **구매자 PC·회사망 탓으로 돌리지 말고** 먼저 이 건인지 본다 (집 PC·핫스팟에서도 똑같으면 확정).
 
-100만원 초과는 카드사가 인증서 단계를 추가로 요구하고, 그 단계가 구매자 PC 의 카드사 보안 프로그램을
-\`https://127.0.0.1:<포트>\` 로 호출한다. 100만원 이하는 그 호출 자체가 없어서 멀쩡한 것이다.
+BC카드를 고르면 페이북 창에 「페이북 앱 결제(QR)」「비밀번호 결제」「인증서 등록/결제(ISP)」가 나온다.
+라이트페이→나이스페이 · Chrome · Windows UA 에서 60만원·120만원 모두 같은 화면이었다.
+「인증서 등록/결제(ISP)」는 기존 ISP 등록 카드도 금액과 무관하게 결제 프레임에서
+\`https://127.0.0.1:55501\` 로 ISP 프로그램을 호출한다. 15만원 실제 구매자 사례도 이 호출이 막힌 경우다.
+KB국민 · 카카오뱅크도 ISP 계열이라 같은 원리로 설명한다.
 
 크롬 142(2025-10)부터 **로컬 네트워크 액세스(LNA)** 정책이 적용돼 이 호출에 권한이 필요해졌다.
-부트페이 · PG 가 바뀐 게 아니라 브라우저 규칙이 바뀐 것이라, 몇 년 잘 되던 가맹점도 이때부터 고액 결제만 막힌다.
-가맹점에는 이렇게 설명한다: 「크롬이 2025년 10월부터 보안 정책을 바꾸면서, 쇼핑몰 화면 안에 띄운 결제창(iframe)에서는 PC 의 카드사 보안 프로그램을 부를 수 없게 됐습니다. 100만원을 넘는 BC · KB국민 · 카카오뱅크 카드결제만 이 프로그램이 필요해서 그 결제만 막힙니다. PC 에서 100만원을 넘는 결제만 결제창을 팝업으로 띄우시면 됩니다.」
-결제창을 iframe 으로 열면 이 권한이 다른 도메인 iframe 으로 내려가지 않아(기본 allowlist \`self\`)
-**권한 팝업조차 뜨지 않고 조용히 거부**된다.
+부트페이 · PG 가 바뀐 게 아니라 브라우저 규칙이 바뀐 것이라, 몇 년 잘 되던 가맹점도 이때부터 막힌다.
+Edge 도 Chromium 기반이라 버전에 따라 같은 증상이 난다 — Edge 로 된 구매자도 있고 Edge 도 안 된 구매자도 있다.
+가맹점에는 이렇게 설명한다: 「크롬 142부터 로컬 네트워크 권한이 필요합니다. BC · KB국민 · 카카오뱅크 카드의 ISP 인증서 결제는 금액과 무관하게 PC 의 ISP 프로그램을 호출합니다. SDK 5.5.2 이상으로 올리고 PC 는 iframe, 모바일은 redirect 로 열어 주세요. SDK 를 바로 올릴 수 없다면 PC 는 popup 으로 열어 주세요. 페이북 앱 결제(QR)·비밀번호 결제는 ISP 프로그램 없이 진행할 수 있습니다.」
+SDK 5.5.1 이하에서 결제창을 iframe 으로 열면 이 권한이 다른 도메인 iframe 으로 내려가지 않아(기본 allowlist \`self\`)
+**권한 팝업조차 뜨지 않고 조용히 거부**된다. SDK 5.5.2부터 결제 iframe 에
+\`allow="local-network-access *; local-network *; loopback-network *"\` 가 붙어 권한이 \`prompt\`(허용 가능)가 된다.
 
 ## 🔴 보안 헤더로 해결되지 않는다 — 여기서 시간을 가장 많이 버린다
 
 "Vercel 이 iframe 정책을 조여서 그렇다" 는 오진이 실제로 나왔다. **아니다.**
 
-실측 (크롬 154 · 2026-11-04, 1,200,000원 카드결제. 크롬 145 에서도 같았다):
+실측 (Chrome · Windows UA · 라이트페이→나이스페이 · BC카드, 60만원·120만원):
 
 | 상황 | 결과 |
 |------|------|
 | 가맹점 최상위 페이지 | 허용 (헤더와 무관) |
-| \`open_type: 'popup'\` — 팝업 창과 그 안의 PG(나이스페이) 프레임 | **허용** |
-| \`open_type: 'iframe'\` — 결제창 iframe | 거부 |
+| \`open_type: 'popup'\` — 팝업 창과 그 안의 PG(나이스페이) 프레임 | \`prompt\` (허용 가능) |
+| \`open_type: 'iframe'\` · SDK 5.5.1 이하 — 결제창과 그 안의 PG 프레임 전부 | \`denied\` (거부) |
+| \`open_type: 'iframe'\` · SDK 5.5.2 이상 — 결제창과 그 안의 PG 프레임 전부 | \`prompt\` (허용 가능) |
 | \`open_type: 'redirect'\` — **PC** | **거부** (PC redirect 는 최상위 이동 없이 iframe 으로 뜬다) |
 | iframe + \`Permissions-Policy: loopback-network=*\` 추가 | **여전히 거부** |
 | 보안 헤더가 아예 없는 사이트의 iframe | **여전히 거부** |
@@ -693,7 +703,7 @@ CSP 허용목록은 **iframe 경로의 필요조건이지 충분조건이 아닙
 Vercel · Cloudflare Pages 등 호스팅과 무관하게 같았다.
 
 - \`Permissions-Policy\` 를 추가해도 iframe 안은 그대로 거부된다. iframe 태그 쪽 위임이 함께 필요한데
-  그건 결제 SDK 영역이라 가맹점이 손댈 수 없다
+  그건 결제 SDK 영역이다. SDK 5.5.2부터 이 위임 설정이 붙는다
 - **CSP 와 무관하다.** CSP 는 다른 도메인 iframe 안으로 상속되지 않는다
 - 보안 헤더를 한 번도 설정한 적 없는 사이트에서도 똑같이 거부된다 — 브라우저 기본 동작이다
 - 오히려 \`loopback-network=(self)\` 처럼 잘못 적으면 없던 제약이 새로 생긴다
@@ -708,11 +718,12 @@ Vercel · Cloudflare Pages 등 호스팅과 무관하게 같았다.
 document.featurePolicy.allowsFeature('loopback-network')   // false 면 이 건
 \`\`\`
 
-## 해결 — 창 모드를 바꾼다
+## 해결 — SDK 를 5.5.2 이상으로 올린다
 
-결제창이 **최상위 창**으로 뜨면 권한이 정상 적용되고 허용 팝업도 정상적으로 나타난다.
+\`@bootpay/client-js\` 를 5.5.2 이상으로 올린다. CDN 은 \`https://js.bootpay.co.kr/bootpay-5.5.2.min.js\` 를 사용한다.
+PC 는 iframe, 모바일은 redirect 를 권장한다. SDK 업그레이드 후 PC 의 결과 처리 코드는 그대로 쓴다.
 
-🔴 **PC 는 결제 금액이 100만원을 넘을 때만 \`popup\` 이다. PC 에 \`redirect\` 를 권하지 마세요** — PC redirect 는 페이지 이동 없이 iframe 으로 떠서 이 증상이 그대로 남는다. 100만원 이하는 iframe 도 정상이라 모든 결제를 popup 으로 바꿀 필요는 없다(팝업 확인 단계가 붙는다).
+🔴 **SDK 를 바로 올릴 수 없다면 PC 는 \`popup\` 으로 연다. PC 에 \`redirect\` 를 권하지 마세요** — PC redirect 는 페이지 이동 없이 iframe 으로 떠서 이 증상을 해결하지 못한다. 대안 코드는 \`open_type: isMobile ? 'redirect' : 'popup'\` 이다. popup 에서는 같은 프레임 체인이 \`prompt\` 상태라 권한 허용이 가능하다.
 
 \`\`\`javascript
 const isMobile = /Mobile|Android|iP(hone|od|ad)/i.test(navigator.userAgent)
@@ -720,7 +731,7 @@ const isMobile = /Mobile|Android|iP(hone|od|ad)/i.test(navigator.userAgent)
 await Bootpay.requestPayment({
   // ... 생략
   extra: {
-    open_type: isMobile ? 'redirect' : (price > 1000000 ? 'popup' : 'iframe'),   // price = 결제 금액
+    open_type: isMobile ? 'redirect' : 'iframe',   // SDK 5.5.2 이상
     redirect_url: window.location.origin + '/payment/result',   // redirect 경로에서 필수
     separately_confirmed: true,
   },
@@ -733,7 +744,8 @@ await Bootpay.requestPayment({
 
 | open_type | 결과 수신 | 추가로 해야 할 것 |
 |-----------|----------|------------------|
-| \`popup\` | \`confirm\` 콜백 (iframe 과 동일) | 거의 없음. 구매자 클릭 1회가 추가된다 |
+| \`iframe\` (SDK 5.5.2 이상) | \`confirm\` 콜백 | SDK 업그레이드. 결과 처리 코드 유지 |
+| \`popup\` (SDK 를 바로 올릴 수 없을 때) | \`confirm\` 콜백 (iframe 과 동일) | 거의 없음. 구매자 클릭 1회가 추가된다 |
 | \`redirect\` | **\`redirect_url\` 서버 라우트** | 서버 라우트 신설 필수 |
 
 \`redirect\` 로 바꿀 때 반드시 짚어야 할 것:
@@ -759,7 +771,7 @@ PC·모바일을 다르게 쓰면 **양쪽 결과 처리를 모두 구현**해�
 
 주소창 자물쇠 → 사이트 설정 →
 크롬 145 이상은 **「기기의 앱」**, 크롬 142~144 는 **「로컬 네트워크 액세스」** 를 **허용** 으로 변경 → 새로고침.
-급하면 Microsoft Edge 를 안내할 수 있다.
+구매자가 급하면 ISP 프로그램 없이 진행할 수 있는 페이북 앱 결제(QR)·비밀번호 결제를 안내한다. Edge 로 바꿔 된 구매자도 있지만 Edge 도 Chromium 기반이라 버전에 따라 똑같이 막힌다 — 확실한 우회는 QR·비밀번호 결제다.
 
 문서: https://developers.bootpay.ai/payment-window/local-network
 `,
@@ -774,7 +786,7 @@ PC·모바일을 다르게 쓰면 **양쪽 결과 처리를 모두 구현**해�
 
 | 기기 | \`open_type\` | 근거 |
 |------|--------------|------|
-| **PC (데스크톱 브라우저)** | \`iframe\`, **결제 금액 100만원 초과면 \`popup\`** | iframe 안에서는 크롬 LNA 로 100만원 초과 ISP·페이북 인증창이 막힌다. PC redirect 도 iframe 으로 떠서 못 피한다 → topic="local-network". popup 은 구매자 클릭(「결제계속하기」)이 1회 늘어서 금액으로 가른다 |
+| **PC (데스크톱 브라우저)** | **SDK 5.5.2 이상은 \`iframe\`** | 로컬 네트워크 권한 위임으로 ISP 인증서 결제 허용 가능. 금액 조건 없음. SDK 를 바로 올릴 수 없으면 \`popup\`. PC redirect 는 페이지 이동 없이 iframe 으로 떠서 해결되지 않는다 → topic="local-network" |
 | **모바일 (iOS·Android·인앱브라우저)** | **\`redirect\` 권장** | 조합에 따라 중첩 iframe 이 거부될 수 있다. CSP 로는 못 푸는 케이스가 있다 |
 
 실패했을 때의 모양이 나쁩니다 — **결제는 승인됐는데 가맹점 화면만 결과를 못 받는** 상태가 되어
@@ -796,7 +808,7 @@ const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 await Bootpay.requestPayment({
   // ... 생략
   extra: {
-    open_type: isMobile ? 'redirect' : (price > 1000000 ? 'popup' : 'iframe'),   // price = 결제 금액
+    open_type: isMobile ? 'redirect' : 'iframe',   // SDK 5.5.2 이상
     redirect_url: window.location.origin + '/payment/result',   // redirect 경로에서 필수
     separately_confirmed: true,     // 🔴 서버승인(분리승인)
   },
@@ -867,6 +879,8 @@ export async function handlePaymentResult() {
 
 ## popup 은 언제 쓰나
 
+SDK 5.5.2 이상이면 PC 는 iframe 을 권장합니다. SDK 를 바로 올릴 수 없다면 금액과 무관하게 PC 는 popup 을 사용해 ISP 인증서 결제의 로컬 프로그램 호출을 허용할 수 있습니다.
+
 - iframe 을 지원하지 않는 결제수단(네이버페이·이니시스 모바일 카드 일부)
 - 단, 팝업차단 정책 때문에 **구매자의 직접 클릭**이 필요합니다 → UI 스텝이 하나 늘어납니다
 - 인앱브라우저(카카오톡·인스타그램·페이스북)에서는 팝업이 자주 막히므로 \`redirect\` 가 낫습니다
@@ -880,7 +894,9 @@ iframe 은 부모 페이지의 CSP 를 상속하므로 PG 도메인이 \`frame-s
 
 ## 🔴 모바일 웹은 open_type 을 redirect 로 권장합니다
 
-PC 는 \`iframe\` 으로 띄워도 되지만 결제 금액이 100만원을 넘으면 \`popup\`(iframe 에서는 ISP·페이북 인증창이 막힌다 → topic="local-network"), **모바일(iOS·Android·인앱브라우저)은 \`redirect\`** 를 권합니다.
+SDK 5.5.2 이상이면 PC 는 \`iframe\`, **모바일(iOS·Android·인앱브라우저)은 \`redirect\`** 를 권합니다.
+금액 조건은 없습니다. SDK 를 바로 올릴 수 없다면 \`open_type: isMobile ? 'redirect' : 'popup'\` 을 사용합니다.
+PC redirect 는 페이지 이동 없이 iframe 으로 떠서 이 증상을 해결하지 못합니다 → topic="local-network"
 결제창은 **중첩 iframe**(가맹점 → 결제창 → PG 모듈) 구조인데, 모바일에서 이게 항상 막히지는 않지만
 PG·결제수단·브라우저 조합에 따라 프레임 임베드가 거부되거나 앱 복귀가 실패할 수 있고,
 그런 경우 **CSP 를 열어도 풀리지 않습니다.** 라이트페이(\`pg: 'lightpay'\`)는 결제창 안에서
@@ -889,7 +905,7 @@ PG·결제수단·브라우저 조합에 따라 프레임 임베드가 거부되
 \`\`\`javascript
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 extra: {
-  open_type: isMobile ? 'redirect' : (price > 1000000 ? 'popup' : 'iframe'),   // price = 결제 금액
+  open_type: isMobile ? 'redirect' : 'iframe',   // SDK 5.5.2 이상
   redirect_url: window.location.origin + '/payment/result',
 }
 \`\`\`
@@ -910,22 +926,6 @@ extra: {
   - Android: \`AndroidManifest.xml\`에 intent-filter 추가
   - iOS: URL Scheme 또는 Universal Links 설정
 
-## 인앱브라우저 이슈
-
-일부 앱(카카오톡, 네이버 등)의 인앱브라우저에서는 결제가 제한될 수 있습니다:
-- 해결: 외부 브라우저로 열기 또는 SDK의 \`extra.open_type\` 옵션 사용
-- 카카오페이/네이버페이 등 앱 간 이동이 필요한 결제는 인앱브라우저에서 제한됨
-
-## 카드사별 결제 방식은 가맹점이 바꿀 수 없습니다
-
-특정 카드만 앱카드가 아닌 다른 인증 화면으로 뜨는 것은 **PG사–카드사 간 연동 정책**이며, \`open_type\` 을 바꾸거나 SDK 옵션을 조정해도 달라지지 않습니다.
-
-- **KCP + 국민카드 → ISP 결제**: KCP가 국민카드에 대해 ISP를 권장 방식으로 두고 있어 앱카드 호출로 변경할 수 없습니다
-- 삼성카드 모니모 등 간편결제 앱으로 이동한 뒤 진행이 멈추는 현상은 해당 카드사 앱 이슈인 경우가 많습니다 → 앱 완전 종료 후 재시도로 먼저 확인하세요
-- 리다이렉트 전환을 권하기 전에, **바꿀 수 있는 문제인지부터** 구분하세요
-
-## PG사 앱 결제 흐름
-
 ## 🔴 앱 http 허용 — iOS ATS · Android cleartext (앱에서 직접 넣는다)
 
 결제 중 거치는 카드사·PG 화면에 http 주소가 끼면 앱이 막는다. **SDK 가 대신 켤 수 없는 앱 설정**이라
@@ -942,6 +942,22 @@ extra: {
 
 증상 지문: "카드사 인증 화면으로 넘어가다 멈춘다" · "iOS 앱에서만 결제가 하얀 화면" · "-1022".
 문서: https://developers.bootpay.ai/more/webview
+
+## 인앱브라우저 이슈
+
+일부 앱(카카오톡, 네이버 등)의 인앱브라우저에서는 결제가 제한될 수 있습니다:
+- 해결: 외부 브라우저로 열기 또는 SDK의 \`extra.open_type\` 옵션 사용
+- 카카오페이/네이버페이 등 앱 간 이동이 필요한 결제는 인앱브라우저에서 제한됨
+
+## 카드사별 결제 방식은 가맹점이 바꿀 수 없습니다
+
+특정 카드만 앱카드가 아닌 다른 인증 화면으로 뜨는 것은 **PG사–카드사 간 연동 정책**이며, \`open_type\` 을 바꾸거나 SDK 옵션을 조정해도 달라지지 않습니다.
+
+- **KCP + 국민카드 → ISP 결제**: KCP가 국민카드에 대해 ISP를 권장 방식으로 두고 있어 앱카드 호출로 변경할 수 없습니다
+- 삼성카드 모니모 등 간편결제 앱으로 이동한 뒤 진행이 멈추는 현상은 해당 카드사 앱 이슈인 경우가 많습니다 → 앱 완전 종료 후 재시도로 먼저 확인하세요
+- 리다이렉트 전환을 권하기 전에, **바꿀 수 있는 문제인지부터** 구분하세요
+
+## PG사 앱 결제 흐름
 
 \`\`\`
 1. 앱에서 결제 요청
