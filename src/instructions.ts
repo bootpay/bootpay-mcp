@@ -249,6 +249,8 @@ const ALIMTALK = `
 - 알림톡 웹훅 URL 을 주문 · 구독 웹훅 URL 과 같게 두지 마세요
 
 **5. 가맹점 서버에 발송 코드를 붙일 때** — \`POST https://message.bootapi.com/alimtalk/send\`(대량 \`/send/bulk\`. 경로에 \`/v1\` 이 없고, 옛 주소 \`api.bootapi.com/v1/alimtalk\` 는 410 입니다), 커머스 연동키 Basic Auth. \`required_variables\` 를 모두 채우고 주문번호 같은 고유값을 \`ref_id\` 로 넣어 재시도 중복 발송을 막으세요. \`reserved_at\` 은 시간대 오프셋을 붙인 ISO8601 로 보내세요 (해석 못 하는 값은 즉시 발송됩니다). 결과는 알림톡 웹훅(301 성공 · 302 실패)으로 받고 \`X-Bootpay-Signature\` HMAC 을 검증하세요.
+
+**6. 🔴 시각이 정해진 대량 발송(수업 N분 전 · 예약 리마인더)** — 발송 직전 크론으로 \`/send/bulk\` 를 한 번에 쏘는 코드를 짜지 마세요. 한도는 **접수 순간**에 세고(예약도 마찬가지), 수신자 수가 남은 한도보다 많으면 요청 전체가 3022 라 새 프로젝트는 11명부터 한 건도 안 나갑니다. 수강 신청 · 일정 확정 때 \`reserved_at\`(수업 시작 − N분)으로 미리 예약하고, 분당 한도 안 묶음으로 나눠 접수하고, ref_id 를 수업 · 수강생 · 알림 종류 조합으로 두고, receipt_id 를 저장해 일정이 바뀌면 취소 후 재예약하게 하세요. 일 한도를 넘을 규모면 오픈 전에 부트페이에 한도 상향을 요청하라고 사용자에게 말하세요. 세부는 \`alimtalk_send_bulk\` 설명에 있습니다.
 `.trim();
 
 /** 쇼핑몰 자유 페이지(page 묶음, G13-M1) — 켜졌을 때만 싣는다 @date: 2026-11-19 */
@@ -277,7 +279,7 @@ function toolsetSection(opts: InstructionsOptions): string {
         `- 켜짐: ${on.map(n => `\`${n}\``).join(', ')}`,
     ];
     if (opts.door) lines.splice(2, 0, `- 이 세션은 「${DOORS[opts.door].name}」 문입니다 — ${DOORS[opts.door].who}`);
-    if (!opts.door && opts.mode === 'stdio' && opts.toolsets.includes('alimtalk')) lines.push(`- ${DEFAULT_DOOR_NOTICE}`);
+    if (!opts.door && opts.mode === 'stdio' && !opts.toolsets.includes('alimtalk')) lines.push(`- ${DEFAULT_DOOR_NOTICE}`);
     if (off.length > 0) {
         lines.push(`- 꺼짐: ${off.map(n => `\`${n}\` (${TOOLSET_DESCRIPTIONS[n]})`).join(' · ')}`);
         lines.push(opts.mode === 'stdio'

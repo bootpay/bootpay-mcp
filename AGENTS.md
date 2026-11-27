@@ -197,7 +197,7 @@ Admin 도구(get_integration_context, browser_login 등)가 없으면:
 
 ## 도구 묶음 — 필요한 도구가 안 보일 때
 
-stdio 는 기본으로 `docs,payment,alimtalk` 묶음만 켭니다. 상품(`product`)·커머스(`commerce`) 도구가 필요한데
+stdio 는 기본으로 `docs,payment` 묶음만 켭니다. 알림톡(`alimtalk`)·상품(`product`)·커머스(`commerce`) 도구가 필요한데
 목록에 없으면 `list_toolsets` 를 부르고, 사용자에게 MCP 설정 env `BOOTPAY_TOOLSETS`(예: `"payment,alimtalk,product"`, 또는 `"all"`)를
 안내하세요. 설정 파일은 사용자가 고치고, 클라이언트를 완전히 종료한 뒤 다시 켜야 반영됩니다.
 

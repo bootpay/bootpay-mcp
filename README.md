@@ -178,7 +178,7 @@ AI 코딩 도구(**Claude**, **Cursor**, **Windsurf**, **Cline**, **GitHub Copil
 
 **Docs** (문서 검색·SDK 버전·트러블슈팅) + **Admin** (관리자 설정·PG·위젯·코드 생성) + **알림톡** (카카오 채널·템플릿 검수·발송·수신거부·웹훅) + **Commerce** (스토어·상품·회원) — 하나의 MCP 서버로 제공합니다.
 
-stdio 로 붙으면 기본 **80개**(문서·결제·알림톡 묶음)가 노출되고, `BOOTPAY_TOOLSETS=all` 이면 **130개**, Commerce 를 켜면(`BOOTPAY_COMMERCE_ENABLED=true`) **129개**입니다.
+stdio 로 붙으면 기본 **41개**(문서·결제 묶음, `payment` 문과 같음)가 노출되고, `BOOTPAY_TOOLSETS=all` 이면 **130개**, Commerce 를 켜면(`BOOTPAY_COMMERCE_ENABLED=true`) **129개**입니다.
 HTTP 로 붙으면 Docs 9개만 노출됩니다.
 
 ### 문(door) — 하는 일에 맞는 도구만 띄우기
@@ -202,7 +202,7 @@ npm 패키지는 하나(`@bootpay/mcp`)이고, 실행 인자로 문을 고릅니
 ```
 
 - 모르는 이름을 붙이면 기동은 막지 않고, 로그에 경고를 남긴 뒤 기본 실행합니다
-- 문을 붙이지 않으면 지금처럼 문서 · 결제 · 알림톡이 켜집니다. **다음 버전부터 기본 실행에서 알림톡이 빠집니다** — 알림톡을 쓰면 `alimtalk` 을 붙이세요
+- 문을 붙이지 않으면 문서 · 결제만 켜집니다(`payment` 문과 같음). **2.20.0 까지는 알림톡도 기본으로 켜졌습니다** — 알림톡을 쓰면 `alimtalk` 을 붙이세요
 - 문서 검색 · 읽기(`search_docs` · `get_doc` · `list_docs` · `get_cs_guide`)와 `list_toolsets` 는 어느 문에나 있습니다. 스택 판정 · CSP · SDK 버전 · 문제 해결 · 체크리스트는 `payment` · `commerce` 문에만 있습니다
 - 문에 묶음을 더하려면 env `BOOTPAY_TOOLSETS` 를 같이 씁니다 (예: `alimtalk` 문 + `BOOTPAY_TOOLSETS=payment`)
 - 구매자 대신 장바구니 · 주문하는 도구(`commerce_*`)는 원격 `https://mcp.bootpay.ai/commerce/mcp` 가 맡습니다
@@ -216,7 +216,7 @@ MCP 는 붙는 순간 도구 설명·스키마를 통째로 모델에 싣습니�
 |------|:---:|------|
 | `docs` | 항상 | 문서 검색·SDK 버전·스택 판정·CSP·트러블슈팅 |
 | `payment` | O | 로그인·프로젝트·키체인·결제수단·위젯·`generate_payment_code` |
-| `alimtalk` | O | 카카오 알림톡 채널·템플릿·발송·수신거부·웹훅 |
+| `alimtalk` | — | 카카오 알림톡 채널·템플릿·발송·수신거부·웹훅 |
 | `product` | — | 상품·카테고리·상세 블록·배송/구독 정책·이미지·디지털 코드 |
 | `commerce` | — | 커머스 키·몰 설정·결제 복귀 주소·테스트 상품·`generate_commerce_code` (+ `BOOTPAY_COMMERCE_ENABLED` 면 `commerce_*`) |
 | `mall` | — | 쇼핑몰 운영 설정 — 몰 기본 정보·회원가입·주문/배송·약관 |
@@ -397,7 +397,7 @@ args = ["-y", "@bootpay/mcp@latest"]
 BOOTPAY_COMMERCE_CLIENT_KEY = "YOUR_CLIENT_KEY"   # 커머스 연동키 — 결제용 키가 아닙니다
 BOOTPAY_COMMERCE_SECRET_KEY = "YOUR_SECRET_KEY"
 BOOTPAY_COMMERCE_ENABLED = "true"                 # Commerce 도구까지 켤 때만. 알림톡 도구는 이 줄 없이도 노출됩니다
-BOOTPAY_TOOLSETS = "payment,alimtalk,product"     # 상품 도구까지 켤 때 (기본은 payment,alimtalk)
+BOOTPAY_TOOLSETS = "payment,alimtalk,product"     # 상품 도구까지 켤 때 (기본은 payment)
 BOOTPAY_ALIMTALK_SEND_ENABLED = "true"            # 알림톡 실제 발송을 켤 때만 (기본 꺼짐 — 미리보기만 됩니다)
 BOOTPAY_ALIMTALK_MAX_RECIPIENTS = "100"           # 알림톡 1회 발송 인원 상한 (기본 100)
 BOOTPAY_ALIMTALK_SENDER_KEY = "YOUR_SENDER_KEY"   # 연동 채널이 둘 이상일 때 보낼 채널 고정 (카카오 발신 프로필 키)
@@ -582,7 +582,7 @@ AI 내부 동작:
 ### Commerce Tools — stdio 13개 (opt-in) · 원격 95개
 
 AI 에이전트가 커머스 API를 호출하여 쇼핑몰 기능을 구현할 수 있는 도구입니다.
-활성화: 환경변수 `BOOTPAY_COMMERCE_ENABLED=true` 설정 후 실행. 키는 알림톡과 같은 `set_commerce_credentials`(기본 노출)로 설정합니다.
+활성화: 환경변수 `BOOTPAY_COMMERCE_ENABLED=true` 설정 후 실행. 키는 알림톡과 같은 `set_commerce_credentials`(`alimtalk` · `commerce` 묶음)로 설정합니다.
 
 아래 표는 **stdio 13개**입니다. 장바구니 검증·주문 준비·주문 상태 조회까지 필요하면
 `https://mcp.bootpay.ai/commerce/mcp` 의 **원격 95개**를 쓰세요 — 거기서는 키를 도구 호출

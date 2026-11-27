@@ -7,7 +7,7 @@ import { TOOL_READ_LOCAL } from './lib/tool-annotations.js';
  *
  * 도구 114개를 전부 노출하면 설명·스키마만 16만 자가 넘는다(2026-09-23 실측, 상품 묶음이 그 절반).
  * Cursor·ChatGPT 커넥터처럼 도구 목록을 통째로 싣는 클라이언트에서는 대화가 시작되기도 전에 컨텍스트가 줄어든다.
- * 그래서 기본은 문서·결제·알림톡만 켜고, 상품·커머스는 env `BOOTPAY_TOOLSETS` 로 켠다.
+ * 그래서 기본은 문서·결제만 켜고, 알림톡·상품·커머스는 문(`npx @bootpay/mcp alimtalk` 등)이나 env `BOOTPAY_TOOLSETS` 로 켠다.
  *
  * 두 가지를 지킨다.
  * 1) 거르는 곳은 **등록 단계**다 (profiles.ts 와 같은 이유) — 목록에 있는데 호출만 막으면 모델이 없는 길을 두드린다.
@@ -20,8 +20,8 @@ import { TOOL_READ_LOCAL } from './lib/tool-annotations.js';
 export const TOOLSET_NAMES = ['docs', 'payment', 'alimtalk', 'product', 'commerce', 'mall', 'page'] as const;
 export type ToolsetName = typeof TOOLSET_NAMES[number];
 
-/** 아무것도 지정하지 않았을 때 켜지는 묶음. README 의 「알림톡 도구는 기본 노출」 약속을 지킨다 */
-export const DEFAULT_TOOLSETS: readonly ToolsetName[] = ['docs', 'payment', 'alimtalk'];
+/** 문도 BOOTPAY_TOOLSETS 도 없을 때 켜지는 묶음 — payment 문과 같다 */
+export const DEFAULT_TOOLSETS: readonly ToolsetName[] = ['docs', 'payment'];
 
 export const TOOLSET_DESCRIPTIONS: Readonly<Record<ToolsetName, string>> = {
     docs:     '문서 검색·SDK 버전·스택 판정·CSP·트러블슈팅 (항상 켜짐)',
@@ -289,7 +289,7 @@ export function registerListToolsetsTool(server: McpServer, enabled: readonly To
                         how_to_enable: disabled.length === 0
                             ? '모든 묶음이 켜져 있습니다.'
                             : `필요한 일에 맞는 문을 MCP 설정 args 에 붙이세요(예: ["-y", "@bootpay/mcp@latest", "alimtalk"]). 묶음을 직접 고르려면 env 에 BOOTPAY_TOOLSETS="${all}" (또는 "all"). 바꾼 뒤 AI 클라이언트를 완전히 종료하고 다시 켜세요. 설정 파일은 사용자가 직접 고칩니다.`,
-                        ...(door === undefined && enabled.includes('alimtalk')
+                        ...(door === undefined && !enabled.includes('alimtalk')
                             ? { notice: DEFAULT_DOOR_NOTICE }
                             : {}),
                     }, null, 2),
@@ -299,5 +299,5 @@ export function registerListToolsetsTool(server: McpServer, enabled: readonly To
     );
 }
 
-/** 문 없이 띄운 기본 세션에 붙는 안내 — 다음 버전에서 기본값이 결제(docs + payment)로 줄어든다 */
-export const DEFAULT_DOOR_NOTICE = '다음 버전부터 기본 실행(npx @bootpay/mcp)에서 알림톡 도구가 빠집니다. 알림톡은 args 에 "alimtalk" 을 붙여 따로 띄우세요 — 예: ["-y", "@bootpay/mcp@latest", "alimtalk"].';
+/** 문 없이 띄웠는데 알림톡이 꺼진 세션에 붙는 안내 — 기본 실행에는 알림톡 도구가 없다 */
+export const DEFAULT_DOOR_NOTICE = '기본 실행(npx @bootpay/mcp)에는 알림톡 도구가 없습니다(2.21.0 부터). 알림톡은 args 에 "alimtalk" 을 붙여 띄우세요 — 예: ["-y", "@bootpay/mcp@latest", "alimtalk"].';
